@@ -40,10 +40,12 @@ export default function SecuritySection() {
 
     setLoading(true);
     try {
+      // newPasswordConfirm은 클라이언트 검증용이라 서버 DTO(PasswordUpdateReq)에는
+      // currentPassword, newPassword만 존재함 — 그대로 보내면 Jackson이
+      // UnrecognizedPropertyException을 던지므로 제외하고 전송
       await api.patch("/api/users/password", {
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
-        newPasswordConfirm: form.newPasswordConfirm,
       });
       setSuccess(true);
       setForm({ currentPassword: "", newPassword: "", newPasswordConfirm: "" });
