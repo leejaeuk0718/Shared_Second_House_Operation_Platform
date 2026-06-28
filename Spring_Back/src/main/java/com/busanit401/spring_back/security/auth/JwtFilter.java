@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -34,19 +35,21 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
         String token = header.substring(7);
-        // 블랙리스트에 있으면 체인을 끊고 즉시 401 응답 (기존: doFilter만 호출해 우회 통과되던 버그)
+
         if (tokenBlacklistService.isBlacklisted(token)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"message\": \"로그아웃된 토큰입니다.\"}");
             return;
         }
+
         try {
             String username = jwtUtil.extractUsername(token);
             if (username == null || SecurityContextHolder.getContext().getAuthentication() != null) {
                 filterChain.doFilter(request, response);
                 return;
             }
+
             CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(username);
             if (jwtUtil.isTokenValid(token, userDetails.getUsername())) {
                 UsernamePasswordAuthenticationToken authentication =
@@ -55,9 +58,15 @@ public class JwtFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (JwtException e) {
-            // 깨졌거나 만료된 토큰: 인증 정보 없이 다음 필터로 진행 (500 방지)
+            // 토큰 자체가 깨졌거나 만료됨: 인증 정보 없이 다음 필터로 진행
+            SecurityContextHolder.clearContext();
+        } catch (AuthenticationException e) {
+            // 토큰은 유효하지만 그 안의 username으로 사용자를 찾을 수 없음
+            // (예: username 변경/탈퇴 후 옛 토큰을 들고 재요청한 경우)
+            // 500으로 새지 않도록 인증 정보 없이 다음 필터로 진행 → 이후 인가 단계에서 401 처리됨
             SecurityContextHolder.clearContext();
         }
+
         filterChain.doFilter(request, response);
     }
 }
