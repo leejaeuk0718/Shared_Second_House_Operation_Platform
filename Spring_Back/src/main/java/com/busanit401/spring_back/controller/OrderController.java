@@ -1,5 +1,6 @@
 package com.busanit401.spring_back.controller;
 
+import com.busanit401.spring_back.domain.Order;
 import com.busanit401.spring_back.domain.service.OrderService;
 import com.busanit401.spring_back.dto.OrderRequestDto;
 import com.busanit401.spring_back.dto.OrderResponseDto;
@@ -32,16 +33,17 @@ public class OrderController {
     // GET: 주문 목록 조회
     @GetMapping("/admin")
     public ResponseEntity<List<OrderResponseDto>> getAdminOrders() {
-        List<OrderResponseDto> orderDtos = orderService.getAllOrders().stream()
-                .map(order -> OrderResponseDto.builder()
-                        .order_id(order.getOrderId()) // 정확한 Getter 사용
-                        .user_id(order.getUserId())
-                        .delivery_address(order.getDeliveryAddress())
-                        .total_amount(order.getTotalAmount())
-                        .status(order.getStatus())
-                        .build())
-                .toList();
-
-        return ResponseEntity.ok(orderDtos);
+        List<Order> orders = orderService.getAllOrders();
+        // 엔티티를 DTO로 변환하는 안전한 매핑
+        List<OrderResponseDto> dtos = orders.stream().map(o ->
+                OrderResponseDto.builder()
+                        .order_id(o.getOrderId())
+                        .user_id(o.getUserId())
+                        .delivery_address(o.getDeliveryAddress())
+                        .total_amount(o.getTotalAmount())
+                        .status(o.getStatus())
+                        .build()
+        ).toList();
+        return ResponseEntity.ok(dtos);
     }
 }
