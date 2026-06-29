@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation'; // 페이지 이동을 위한 훅
+import { useRouter } from 'next/navigation';
 
 interface CartItem {
   id: number;
@@ -12,7 +12,7 @@ interface CartItem {
 
 export default function CartPage() {
   const [, setRefresh] = useState(0);
-  const router = useRouter(); // 라우터 객체 생성
+  const router = useRouter();
 
   const getCartItems = (): CartItem[] => {
     if (typeof window === 'undefined') return [];
@@ -26,16 +26,43 @@ export default function CartPage() {
 
   const cartItems = getCartItems();
 
-  const handleOrder = () => {
+  // [수정된 주문 로직] 백엔드 필드명(user_id, delivery_address, total_amount)과 일치시킴
+  const handleOrder = async () => {
     if (cartItems.length === 0) {
       alert("장바구니가 비어 있습니다.");
       return;
     }
+
+    const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
-    // 주문 로직 처리 후 관리자 페이지로 이동
-    alert("주문이 완료되었습니다! 관리자 페이지로 이동합니다.");
-    localStorage.removeItem('cart'); // 주문 후 장바구니 비우기
-    router.push('/delivery'); // 관리자 배달 주문 내역 페이지로 이동
+    // 백엔드 OrderRequestDto 구조에 맞춰 필드명 수정
+    const orderData = {
+      user_id: 1004, 
+      delivery_address: "부산광역시 해운대구 센텀시티",
+      total_amount: totalAmount,
+      //status: "주문대기"
+    };
+
+    try {
+      const response = await fetch('http://localhost:8080/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
+
+      if (response.ok) {
+        alert("주문이 완료되었습니다!");
+        localStorage.removeItem('cart'); // 주문 후 장바구니 비우기
+        router.push('/delivery'); // 배달 관리 페이지로 이동
+      } else {
+        const errorText = await response.text();
+        console.error("서버 에러:", errorText);
+        alert("주문 처리에 실패했습니다. 서버 로그를 확인해주세요.");
+      }
+    } catch (error) {
+      console.error("주문 요청 에러:", error);
+      alert("서버 연결에 실패했습니다.");
+    }
   };
 
   const handleQuantity = (id: number, delta: number) => {
@@ -75,7 +102,6 @@ export default function CartPage() {
             </div>
           ))}
 
-          {/* 주문하기 버튼 추가 */}
           <button 
             onClick={handleOrder}
             style={{ 

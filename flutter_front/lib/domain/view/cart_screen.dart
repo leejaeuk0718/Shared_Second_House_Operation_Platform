@@ -1,9 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_front/service/cart_provider.dart';
+import 'package:http/http.dart' as http; // 서버 통신용
+import 'dart:convert';
+import 'package:flutter_front/view/delivery_admin_screen.dart';
+
+import 'delivery_admin_screen.dart'; // 관리자 페이지 import
 
 class CartScreen extends StatelessWidget {
   const CartScreen({Key? key}) : super(key: key);
+
+  // 주문 전송 함수
+  Future<void> _placeOrder(BuildContext context, int totalAmount, List items) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:8080/api/orders'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'user_id': 1004, // 로그인된 사용자 ID 가정
+          'delivery_address': '부산광역시 수영구 광안동 123-45', // 사용자 주소 가정
+          'total_amount': totalAmount,
+          'items': items.map((item) => {
+            'product_id': item['productId'],
+            'quantity': item['quantity'],
+            'price': item['price']
+          }).toList(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('주문이 접수되었습니다!')));
+
+          // 관리자 페이지로 이동
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const DeliveryAdminScreen()),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("주문 전송 에러: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +55,6 @@ class CartScreen extends StatelessWidget {
         builder: (context, cartProvider, child) {
           final cartItems = cartProvider.cartItems;
 
-          // Null Safety 처리: 혹시 모를 데이터 누락에 대비
           int totalAmount = cartItems.fold<int>(0, (sum, item) {
             int price = (item['price'] as num?)?.toInt() ?? 0;
             int qty = (item['quantity'] as num?)?.toInt() ?? 0;
@@ -49,11 +87,13 @@ class CartScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
+                            // 수량 감소 (기존 로직 유지)
                             IconButton(
                                 icon: const Icon(Icons.remove),
-                                onPressed: () => cartProvider.incrementQuantity(item['productId'])
+                                onPressed: () => cartProvider.decrementQuantity(item['productId'])
                             ),
                             Text('${item['quantity'] ?? 0}'),
+                            // 수량 증가 (기존 로직 유지)
                             IconButton(
                                 icon: const Icon(Icons.add),
                                 onPressed: () => cartProvider.incrementQuantity(item['productId'])
@@ -78,14 +118,12 @@ class CartScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 20.0),
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6F40)),
-                  onPressed: () {
-                    cartProvider.addOrderFromCart(totalAmount);
-                    cartProvider.clearCart();
+                  onPressed: () async {
+                    // 1. 서버로 주문 데이터 전송
+                    await _placeOrder(context, totalAmount, cartItems);
 
-                    // 사용자 피드백 추가
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('주문이 접수되었습니다!'), duration: Duration(seconds: 2)),
-                    );
+                    // 2. 로컬 장바구니 초기화
+                    cartProvider.clearCart();
                   },
                   child: const Text('주문하기', style: TextStyle(color: Colors.white)),
                 ),
