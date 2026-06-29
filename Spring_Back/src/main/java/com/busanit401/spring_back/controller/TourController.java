@@ -29,7 +29,7 @@ public class TourController {
      */
     @Getter
     @AllArgsConstructor
-    public static class TourServerResponse {
+    public static class tourService {
         private List<TourDto> tours;
         private boolean isLast;
     }
@@ -40,7 +40,7 @@ public class TourController {
      */
     @GetMapping
     @Operation(summary = "관광지 리스트 조회", description = "지역 코드와 페이지 번호를 받아 관광지 목록과 마지막 페이지 여부를 반환합니다.")
-    public ResponseEntity<TourServerResponse> getTourList(
+    public ResponseEntity<tourService> getTourList(
             @Parameter(description = "법정동 시도 코드 (예: 부산=26)") @RequestParam("lDongRegnCd") String lDongRegnCd,
             @Parameter(description = "조회할 페이지 번호") @RequestParam(value = "pageNo", defaultValue = "1") int pageNo) {
 
@@ -49,7 +49,7 @@ public class TourController {
 
         // 안전장치: 결과 객체 자체가 null일 경우 즉시 빈 배열과 마지막 페이지 표시(true) 반환
         if (result == null) {
-            return ResponseEntity.ok(new TourServerResponse(Collections.emptyList(), true));
+            return ResponseEntity.ok(new tourService(Collections.emptyList(), true));
         }
 
         // 2. DTO 내부에 담긴 순수 관광지 리스트(tours) 추출
@@ -62,7 +62,7 @@ public class TourController {
         boolean isLast = result.isLast();
 
         // 4. Next.js가 스크롤을 제어할 수 있도록 최적화된 구조로 포장하여 반환
-        return ResponseEntity.ok(new TourServerResponse(tours, isLast));
+        return ResponseEntity.ok(new tourService(tours, isLast));
     }
 }
 
