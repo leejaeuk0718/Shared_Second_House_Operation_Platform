@@ -106,13 +106,23 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-resources/**",
                                 "/webjars/**",
-                                // 게스트 채팅 테스트
-                                "/ws-test.html",
-                                "/ws-guest-chat/**",
-                                "/api/guest/chat/**",
 
                                 "/oauth2/**",
                                 "/login/**",
+
+                                // 숙소 목록 조회, 숙소 상세 조회
+                                "/api/stay/accommodations",
+                                "/api/stay/accommodations/",
+                                "/api/stay/stories/",
+                                "/api/places/",
+                                "/uploads/",
+
+                                // 게스트 채팅
+                                "/ws-guest-chat/**",
+                                "/api/guest/chat/**",
+
+                                // 관광지 리스트
+                                "/api/tours/**",
 
                                 "/ws/**",
                                 "/api/users/find-username",
@@ -120,10 +130,8 @@ public class SecurityConfig {
                                 "/api/users/google-login",
                                 "/api/users/kakao-login",
                                 "/api/users/refresh-token",
-//                                "/api/**",
 
-
-//                                // /api/주소는 모두다 회원검증 안하고 통과. test용
+//                                // test용 전체 통과 경로
 //                                "/api/**",
 
                                 "/uploads/**",
