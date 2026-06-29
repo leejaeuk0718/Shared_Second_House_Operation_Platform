@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_front/service/cart_provider.dart';
 import 'package:http/http.dart' as http; // 서버 통신용
 import 'dart:convert';
-import 'package:flutter_front/view/delivery_admin_screen.dart';
 
 import 'delivery_admin_screen.dart'; // 관리자 페이지 import
 
