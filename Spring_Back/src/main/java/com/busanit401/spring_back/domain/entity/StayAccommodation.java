@@ -1,6 +1,7 @@
 package com.busanit401.spring_back.domain.entity;
 
 import com.busanit401.spring_back.domain.BaseTimeEntity;
+import com.busanit401.spring_back.domain.SubscriptionsUser;
 import com.busanit401.spring_back.dto.StayAccommodationRequestDto;
 import com.busanit401.spring_back.enums.StayAccommodationStatus;
 import jakarta.persistence.*;
@@ -73,7 +74,12 @@ public class StayAccommodation extends BaseTimeEntity {
     @OneToMany(mappedBy = "stayAccommodation", cascade = CascadeType.ALL)
     private List<StayStory> stories = new ArrayList<>();
 
-    // 숙소 정보 수정 비즈니스 메서드 (@Setter 대신 사용)
+    // ── 숙소 이미지 URL 저장 비즈니스 메서드 ─────────────────
+    public void updateImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    // ── 숙소 정보 수정 비즈니스 메서드 (@Setter 대신 사용) ───
     public void update(StayAccommodationRequestDto dto) {
         this.name = dto.getName();
         this.address = dto.getAddress();
@@ -92,3 +98,29 @@ public class StayAccommodation extends BaseTimeEntity {
         this.status = dto.getStatus();
     }
 }
+
+/*
+ * ==================================================================================
+ * [파일 정보]
+ * 위치  : com.busanit401.spring_back.domain.entity.StayAccommodation
+ * 역할  : 숙소 엔티티 (DB 테이블: sh_stay_accommodation)
+ * ----------------------------------------------------------------------------------
+ * [연관 파일]
+ * - StayReservation.java              : 예약 (1:N, CascadeType.ALL)
+ * - StayStory.java                    : 스토리 (1:N, CascadeType.ALL)
+ * - StayAccommodationRequestDto.java  : 등록/수정 요청 DTO (update() 인자)
+ * - StayAccommodationStatus.java      : 상태 Enum (AVAILABLE / MAINTENANCE)
+ * ----------------------------------------------------------------------------------
+ * [필드 요약]
+ * - imageUrl  : 이미지 URL 목록 (쉼표 구분) → 프론트에서 split(",") 후 사용
+ * - amenities : 구성용품 (쉼표 구분) → 프론트에서 split 후 react-icons 매핑
+ * - monthlyPrice : 숙소별 월세 (할인율은 공통 테이블 StayAccommodationPrice 에서 관리)
+ * ----------------------------------------------------------------------------------
+ * [비즈니스 메서드]
+ * - update(dto) : 숙소 정보 일괄 수정 (@Setter 대신 사용)
+ * ----------------------------------------------------------------------------------
+ * [주의사항 / 참고]
+ * - 숙소 삭제 시 CascadeType.ALL 로 StayReservation, StayStory 함께 삭제됨
+ * - EnumType.STRING 사용 → DB에 "AVAILABLE", "MAINTENANCE" 문자열로 저장
+ * ==================================================================================
+ */

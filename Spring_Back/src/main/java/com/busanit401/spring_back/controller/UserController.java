@@ -8,6 +8,7 @@ import com.busanit401.spring_back.security.auth.CustomUserDetailsService;
 import com.busanit401.spring_back.domain.service.TokenBlacklistService;
 import com.busanit401.spring_back.domain.service.UserService;
 import com.busanit401.spring_back.util.JwtUtil;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,6 +25,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -46,14 +48,23 @@ public class UserController {
         String authorizationHeader = request.getHeader("Authorization");
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             String accessToken = authorizationHeader.substring(7);
-            long expirationTime = jwtUtil.extractAllClaims(accessToken).getExpiration().getTime() - System.currentTimeMillis();
-            tokenBlacklistService.addToBlacklist(accessToken, expirationTime);
+            try {
+                long expirationTime = jwtUtil.extractAllClaims(accessToken).getExpiration().getTime() - System.currentTimeMillis();
+                tokenBlacklistService.addToBlacklist(accessToken, expirationTime);
+            } catch (JwtException e) {
+                // 이미 깨졌거나 만료된 토큰이므로 블랙리스트 처리 없이 무시
+            }
         }
 
-        // [개선] 로그아웃 시 Refresh Token도 블랙리스트에 넣어 추가 사용 방지
-        if (refreshToken != null && !jwtUtil.isTokenExpired(refreshToken)) {
-            long refreshExpTime = jwtUtil.extractAllClaims(refreshToken).getExpiration().getTime() - System.currentTimeMillis();
-            tokenBlacklistService.addToBlacklist(refreshToken, refreshExpTime);
+        if (refreshToken != null) {
+            try {
+                if (!jwtUtil.isTokenExpired(refreshToken)) {
+                    long refreshExpTime = jwtUtil.extractAllClaims(refreshToken).getExpiration().getTime() - System.currentTimeMillis();
+                    tokenBlacklistService.addToBlacklist(refreshToken, refreshExpTime);
+                }
+            } catch (JwtException e) {
+                // 이미 깨졌거나 만료된 토큰이므로 블랙리스트 처리 없이 무시
+            }
         }
 
         SecurityContextHolder.clearContext();
@@ -87,13 +98,40 @@ public class UserController {
      */
     @PatchMapping
     public ResponseEntity<?> updateUserProfile(@AuthenticationPrincipal CustomUserDetails userDetails,
-                                               @RequestBody @Valid UserSimpleReq dto, // [개선] @Valid 추가
-                                               BindingResult bindingResult) {
+                                               @RequestBody @Valid UserSimpleReq dto,
+                                               BindingResult bindingResult,
+                                               HttpServletResponse response) { // [추가] 응답 헤더에 새 토큰을 쓰기 위해 필요
+        log.info("PATCH 요청 도착");
+        log.info("userId = {}", userDetails.getId());
+        log.info("username = {}", dto.getUsername());
+        log.info("nickname = {}", dto.getNickname());
+
         if (bindingResult.hasErrors()) {
             return buildValidationErrorResponse(bindingResult);
         }
+
         userService.updateUser(userDetails.getId(), dto);
         UserResp updatedUser = userService.getUser(userDetails.getId());
+
+        // [추가] username이 바뀌면 기존 토큰(sub=옛 username)은 더 이상 유효하지 않으므로
+        // 새 username으로 서명된 토큰을 발급해 응답 헤더에 실어준다.
+        // 프론트의 lib/api.ts가 이 헤더를 감지해서 tokenStorage를 갱신함.
+        if (!userDetails.getUsername().equals(updatedUser.getUsername())) {
+            String newAccessToken = jwtUtil.generateToken(updatedUser.getUsername());
+            response.setHeader("Authorization", "Bearer " + newAccessToken);
+
+            // [추가] Refresh Token도 옛 username으로 고정돼 있던 채로 남아있으면
+            // 이후 access token이 만료되어 재발급될 때 다시 옛 username으로 돌아가버림.
+            // 그래서 username 변경 시점에 Refresh Token도 함께 새로 발급해 쿠키를 갱신한다.
+            String newRefreshToken = jwtUtil.generateRefreshToken(updatedUser.getUsername());
+            Cookie refreshTokenCookie = new Cookie("refresh_token", newRefreshToken);
+            refreshTokenCookie.setHttpOnly(true);
+            refreshTokenCookie.setSecure(true);
+            refreshTokenCookie.setPath("/");
+            refreshTokenCookie.setMaxAge(Math.toIntExact(jwtUtil.getRefreshExpiration() / 1000));
+            response.addCookie(refreshTokenCookie);
+        }
+
         return ResponseEntity.ok(updatedUser);
     }
 
@@ -117,16 +155,16 @@ public class UserController {
 
         userService.updatePassword(userDetails.getId(), request);
         return ResponseEntity.ok(
-                "비밀번호가 변경되었습니다."
+                Map.of("message", "비밀번호가 변경되었습니다.")
         );
     }
     /**
      * 회원 탈퇴
      */
     @DeleteMapping
-    public ResponseEntity<String> deleteUser(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<?> deleteUser(@AuthenticationPrincipal CustomUserDetails userDetails) {
         userService.deleteUser(userDetails.getId());
-        return ResponseEntity.ok("User Deleted successfully");
+        return ResponseEntity.ok(Map.of("message", "회원 탈퇴가 완료되었습니다."));
     }
 
     /**
@@ -140,6 +178,15 @@ public class UserController {
     @PostMapping("/kakao-login")
     public ResponseEntity<?> loginWithKakao(@RequestBody UserInfo userInfo, HttpServletResponse response) {
         return handleSocialLogin(userInfo, response);
+    }
+
+    /**
+     * 이메일로 가입 여부 확인 (소셜 로그인 신규/기존 분기용)
+     */
+    @GetMapping("/exists")
+    public ResponseEntity<?> checkEmailExists(@RequestParam String email) {
+        boolean exists = userService.existsByEmail(email);
+        return ResponseEntity.ok(Map.of("exists", exists));
     }
 
     /**
@@ -173,7 +220,7 @@ public class UserController {
 
     private ResponseEntity<?> handleSocialLogin(UserInfo userInfo, HttpServletResponse response) {
         try {
-            CustomUserDetails userDetails = (CustomUserDetails) customUserDetailsService.loadUserByUsername(userInfo.getEmail());
+            CustomUserDetails userDetails = (CustomUserDetails) customUserDetailsService.loadUserByUsername(userInfo.getUsername());
             User user = userDetails.getUser();
 
             if (user.getRole() == Role.SOCIAL) {

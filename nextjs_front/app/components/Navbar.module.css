@@ -38,3 +38,67 @@
 .navItem:hover {
   color: var(--color-primary);
 }
+
+/* 햄버거 버튼 — 데스크탑에서 숨김 */
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--color-foreground);
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+/* 오버레이 — 데스크탑에서 숨김 */
+.overlay {
+  display: none;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .hamburger {
+    display: block;
+  }
+
+  .nav {
+    display: none;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 0;
+    background-color: var(--color-background);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    z-index: 99;
+    padding: 8px 0;
+  }
+
+  .navOpen {
+    display: flex;
+  }
+
+  .navItem {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 15px;
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
+
+  .navItem:last-child {
+    border-bottom: none;
+  }
+
+  .overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 98;
+    background: rgba(0, 0, 0, 0.2);
+  }
+}

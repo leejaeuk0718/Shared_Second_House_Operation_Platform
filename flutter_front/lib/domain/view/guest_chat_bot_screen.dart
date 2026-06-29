@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_front/domain/controller/chat_bot_controller.dart';
 import 'package:flutter_front/domain/dto/chat_bot_answer_dto.dart';
+import 'package:flutter_front/common/constants/app_colors.dart';
 
 /// 🤖 Gemini RAG 기반 QnA 챗봇 화면
 /// 상태(대화 내역·전송중)는 ChatBotController(Provider)가 관리해, 화면을 나갔다
@@ -17,9 +18,8 @@ class _GuestChatBotScreenState extends State<GuestChatBotScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  // 🎨 플랫폼 시그니처 테마 컬러
-  static const Color primaryNavy = Color(0xFF23399D);
-  static const Color accentMint = Color(0xFF00E5A3);
+  // 🎨 React 챗봇과 동일한 테마 (Next.js globals.css 토큰 = AppColors)
+  static const Color primaryColor = AppColors.primary;
 
   @override
   void dispose() {
@@ -63,14 +63,14 @@ class _GuestChatBotScreenState extends State<GuestChatBotScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      backgroundColor: AppColors.cardBg,
       appBar: AppBar(
         title: const Text(
           'AI 챗봇',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: primaryNavy,
+        backgroundColor: primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
@@ -125,7 +125,7 @@ class _GuestChatBotScreenState extends State<GuestChatBotScreen> {
                   IconButton(
                     icon: Icon(
                       Icons.send,
-                      color: isSending ? Colors.grey : primaryNavy,
+                      color: isSending ? AppColors.textSecondary : primaryColor,
                     ),
                     onPressed: isSending ? null : _handleSend,
                   ),
@@ -150,8 +150,8 @@ class _GuestChatBotScreenState extends State<GuestChatBotScreen> {
           if (!isMe) ...[
             const CircleAvatar(
               radius: 18,
-              backgroundColor: primaryNavy,
-              child: Icon(Icons.smart_toy_outlined, color: accentMint, size: 18),
+              backgroundColor: primaryColor,
+              child: Text('🤖', style: TextStyle(fontSize: 18)),
             ),
             const SizedBox(width: 8),
           ],
@@ -168,7 +168,7 @@ class _GuestChatBotScreenState extends State<GuestChatBotScreen> {
                     maxWidth: MediaQuery.of(context).size.width * 0.7,
                   ),
                   decoration: BoxDecoration(
-                    color: isMe ? const Color(0xFFD6E4FF) : Colors.white,
+                    color: isMe ? AppColors.primaryLight : AppColors.background,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(12),
                       topRight: const Radius.circular(12),
@@ -188,7 +188,7 @@ class _GuestChatBotScreenState extends State<GuestChatBotScreen> {
                   child: Text(
                     msg.text,
                     style: const TextStyle(
-                        fontSize: 14, color: Colors.black87, height: 1.4),
+                        fontSize: 14, color: AppColors.textPrimary, height: 1.4),
                   ),
                 ),
                 // 📚 봇 답변의 근거 FAQ를 칩으로 표시 (있을 때만)
@@ -222,12 +222,12 @@ class _GuestChatBotScreenState extends State<GuestChatBotScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: primaryNavy.withValues(alpha: 0.06),
+                        color: AppColors.primaryLight,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         s.question,
-                        style: const TextStyle(fontSize: 11, color: primaryNavy),
+                        style: const TextStyle(fontSize: 11, color: primaryColor),
                       ),
                     ))
                 .toList(),
@@ -246,8 +246,8 @@ class _GuestChatBotScreenState extends State<GuestChatBotScreen> {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: primaryNavy,
-            child: Icon(Icons.smart_toy_outlined, color: accentMint, size: 18),
+            backgroundColor: primaryColor,
+            child: Text('🤖', style: TextStyle(fontSize: 18)),
           ),
           SizedBox(width: 8),
           Padding(
@@ -256,7 +256,7 @@ class _GuestChatBotScreenState extends State<GuestChatBotScreen> {
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
-                  strokeWidth: 2, color: primaryNavy),
+                  strokeWidth: 2, color: primaryColor),
             ),
           ),
         ],

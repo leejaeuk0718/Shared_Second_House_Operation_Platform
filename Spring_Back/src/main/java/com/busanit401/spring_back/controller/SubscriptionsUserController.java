@@ -1,5 +1,6 @@
 package com.busanit401.spring_back.controller;
 
+import com.busanit401.spring_back.dto.subscriptionsUser.SubscriptionDateRangeResp;
 import com.busanit401.spring_back.dto.subscriptionsUser.SubscriptionSearchCondition;
 import com.busanit401.spring_back.dto.subscriptionsUser.SubscriptionsUserResp;
 import com.busanit401.spring_back.domain.service.SubscriptionsUserService;
@@ -56,5 +57,12 @@ public class SubscriptionsUserController {
     public ResponseEntity<List<SubscriptionsUserResp>> searchByCondition(
             SubscriptionSearchCondition condition) {
         return ResponseEntity.ok(subscriptionsUserService.searchByCondition(condition));
+    }
+
+    // [날짜 검증 추가] 특정 숙소의 사용 중인 구독 기간 목록 — 프론트 사용 불가 기간 표시용 (인증 불필요)
+    @GetMapping("/accommodation/{accommodationId}")
+    public ResponseEntity<List<SubscriptionDateRangeResp>> getSubscriptionsByAccommodation(
+            @PathVariable Long accommodationId) {
+        return ResponseEntity.ok(subscriptionsUserService.getSubscriptionsByAccommodation(accommodationId));
     }
 }

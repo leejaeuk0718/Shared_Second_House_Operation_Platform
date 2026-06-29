@@ -17,7 +17,7 @@ export default function Home() {
       .then((r) => r.json())
       .then((data) => {
         console.log('[Home] 숙소 목록:', data);
-        setAccommodations(data);
+        setAccommodations(data.content ?? []);
       })
       .catch((err) => console.log('[Home] 데이터 조회 실패:', err))
       .finally(() => setLoading(false));

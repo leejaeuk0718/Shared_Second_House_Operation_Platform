@@ -1,69 +1,117 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class GuestChatService {
   StompClient? _stompClient;
   bool _isConnected = false;
 
-  // ==============================================================================================
-  // ⚙️ [테스트 환경 스위치 호스트] 테스트 환경에 맞춰 아래 IP 주소 한 줄만 변경하세요!
-  // ==============================================================================================
-  static const String _ipAddress = '10.0.2.2:8080';       // ① 안드로이드 에뮬레이터 테스트 시
-  // static const String _ipAddress = '10.100.201.245:8080'; // ② 실물 스마트폰 및 리액트 연동 테스트 시
-
-  // 호스트 IP를 기반으로 웹소켓과 HTTP 주소를 자동 동기화합니다.
+  static const String _ipAddress = '10.0.2.2:8080';
   final String _wsUrl = 'ws://$_ipAddress/ws-guest-chat';
   final String _baseUrl = 'http://$_ipAddress/api/guest/chat';
+  final _storage = const FlutterSecureStorage();
 
   bool get isConnected => _isConnected;
 
-  // 채팅방의 과거 메시지 데이터 가져오기 (HTTP GET)=========================================================================
-  Future<List<Map<String, dynamic>>> getChatHistory(int chatRoomId) async {
-    final url = Uri.parse('$_baseUrl/history/$chatRoomId');
+  /// 토큰 저장소 연동용 메서드 (JWT 복구 지점)
+  Future<String?> _getAuthToken() async {
+    return await _storage.read(key: 'accessToken');
+  }
+
+  /// HTTP 및 STOMP 통신을 위한 공통 헤더 생성 규칙
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await _getAuthToken();
+    return {
+      if (token != null) 'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    };
+  }
+
+  /// 유저가 선택한 숙소(House) ID를 기반으로 매핑된 채팅방 번호 조회 (GET 방식)
+  Future<int?> getOrCreateRoom({
+    required int accommodationId, // 백엔드의 {houseId}와 매핑됩니다.
+  }) async {
+    // 🟩 [수정 완] POST -> GET 방식 변환 및 경로변수(PathVariable) 주소 매핑 반영
+    final url = Uri.parse('$_baseUrl/room/$accommodationId');
+    final headers = await _getHeaders();
 
     try {
-      print('🌐 [플러터 HTTP] 과거 내역 요청 시작 -> $url');
-      final response = await http.get(url);
+      // 🟩 [수정 완] http.post 대신 http.get 사용
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final dynamic decoded = jsonDecode(utf8.decode(response.bodyBytes));
+
+        // 백엔드가 반환하는 GuestChatRoom 엔티티 객체 구조에서 ID 추출
+        if (decoded is Map<String, dynamic>) {
+          // 객체 내부의 고유 ID 필드명(id 또는 chatRoomId)에 맞추어 리턴
+          return decoded['id'] ?? decoded['chatRoomId'];
+        } else if (decoded is int) {
+          return decoded;
+        }
+      }
+      developer.log('채팅방 매핑 실패 (코드: ${response.statusCode})', name: 'ChatService');
+      return null;
+    } catch (e) {
+      developer.log('채팅방 생성 중 네트워크 예외 발생', error: e, name: 'ChatService');
+      return null;
+    }
+  }
+
+  /// 특정 채팅방의 과거 대화 내역 조회
+  Future<List<Map<String, dynamic>>> getChatHistory(int chatRoomId) async {
+    final url = Uri.parse('$_baseUrl/history/$chatRoomId');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200) {
         final List<dynamic> decodedData = jsonDecode(utf8.decode(response.bodyBytes));
         return decodedData.map((item) => item as Map<String, dynamic>).toList();
-      } else {
-        print('❌ [플러터 HTTP] 서버 에러 발생 (코드: ${response.statusCode})');
-        return [];
       }
+      developer.log('서버 에러 (코드: ${response.statusCode})', name: 'ChatService');
+      return [];
     } catch (e) {
-      print('❌ [플러터 HTTP] 통신 중 네트워크 예외 에러 발생: $e');
+      developer.log('과거 내역 조회 중 네트워크 예외 발생', error: e, name: 'ChatService');
       return [];
     }
   }
 
-  // 웹소켓 서버 연결 작업 로직==============================================================================================
-  /// [1] 웹소켓 서버 초기화 및 연결 시작
+  /// 웹소켓 서버 초기화 및 채널 연결
   void connectWebSocket({
     required int chatRoomId,
     required Function(Map<String, dynamic>) onMessageReceived,
-  }) {
+  }) async {
     if (_stompClient != null && _isConnected) return;
+
+    final headers = await _getHeaders();
+    // STOMP용 headers에는 Content-Type이 필요하지 않을 수 있으므로 Authorization만 안전하게 추출
+    final Map<String, String> stompHeaders = {};
+    if (headers.containsKey('Authorization')) {
+      stompHeaders['Authorization'] = headers['Authorization']!;
+    }
 
     _stompClient = StompClient(
       config: StompConfig(
-        url: _wsUrl, // ✨ 이제 실물 기기 IP 주소로 완벽하게 꽂힙니다!
+        url: _wsUrl,
+        stompConnectHeaders: stompHeaders,
         onConnect: (StompFrame frame) {
           _isConnected = true;
-          print('🟩 [플러팅 웹소켓] 서버 연결 성공!');
+          developer.log('WebSocket 연결 성공', name: 'ChatService');
           _subscribeRoom(chatRoomId, onMessageReceived);
         },
         onDisconnect: (StompFrame frame) {
           _isConnected = false;
-          print('🟥 [플러터 웹소켓] 서버 연결 끊김');
+          developer.log('WebSocket 연결 끊김', name: 'ChatService');
         },
         onStompError: (StompFrame frame) {
-          print('⚠️ [플러터 웹소켓] STOMP 에러 발생: ${frame.body}');
+          developer.log('STOMP 에러 발생: ${frame.body}', name: 'ChatService');
         },
         onWebSocketError: (error) {
-          print('❌ [플러터 웹소켓] 웹소켓 통신 에러 발생: $error');
+          developer.log('웹소켓 통신 에러', error: error, name: 'ChatService');
         },
       ),
     );
@@ -71,21 +119,21 @@ class GuestChatService {
     _stompClient?.activate();
   }
 
-  /// [2] 특정 채팅방 구독하기 (하행선)
+  /// 특정 채팅방 실시간 구독 구독 (하행선)
   void _subscribeRoom(int chatRoomId, Function(Map<String, dynamic>) onMessageReceived) {
     _stompClient?.subscribe(
       destination: '/topic/guest/room/$chatRoomId',
       callback: (StompFrame frame) {
         if (frame.body != null) {
-          Map<String, dynamic> messageData = jsonDecode(frame.body!);
+          final Map<String, dynamic> messageData = jsonDecode(frame.body!);
           onMessageReceived(messageData);
         }
       },
     );
-    print('📢 [플러터 웹소켓] 구독 완료 -> /topic/guest/room/$chatRoomId');
+    developer.log('구독 완료 -> /topic/guest/room/$chatRoomId', name: 'ChatService');
   }
 
-  /// [3-0] 서버로 메시지 실시간 발송 (상행선)
+  /// 실시간 메시지 발송 (상행선)
   void sendMessage({
     required int chatRoomId,
     required int senderId,
@@ -93,11 +141,11 @@ class GuestChatService {
     required String content,
   }) {
     if (_stompClient == null || !_isConnected) {
-      print('❌ [플러터 웹소켓] 서버와 연결되어 있지 않습니다.');
+      developer.log('메시지 전송 실패: 서버와 연결되어 있지 않습니다.', name: 'ChatService');
       return;
     }
 
-    Map<String, dynamic> chatDto = {
+    final Map<String, dynamic> chatDto = {
       'chatRoomId': chatRoomId,
       'senderId': senderId,
       'senderName': senderName,
@@ -109,62 +157,14 @@ class GuestChatService {
       body: jsonEncode(chatDto),
       headers: {'content-type': 'application/json'},
     );
-    print('🚀 [플러터 웹소켓] 메시지 발신 완료: $content');
+    developer.log('메시지 발신 완료: $content', name: 'ChatService');
   }
 
-  // /// ✨ [3-1] 서버로 메시지 실시간 수정 요청 (상행선 - 수정)
-  // void editMessage({
-  //   required int chatId,         // 어떤 메시지를 고칠지 고유 ID (디비 PK)
-  //   required int chatRoomId,
-  //   required String newContent,   // 새로 변경할 채팅 내용
-  // }) {
-  //   if (_stompClient == null || !_isConnected) {
-  //     print('❌ [플러터 웹소켓] 서버와 연결되어 있지 않습니다.');
-  //     return;
-  //   }
-  //
-  //   Map<String, dynamic> editDto = {
-  //     'type': 'EDIT',            // ✨ 수정 타입 지정
-  //     'chatId': chatId,
-  //     'chatRoomId': chatRoomId,
-  //     'content': newContent,
-  //   };
-  //
-  //   _stompClient?.send(
-  //     destination: '/app/guest/chat/edit', // 백엔드 @MessageMapping("/guest/chat/edit")와 매핑
-  //     body: jsonEncode(editDto),
-  //   );
-  //   print('📝 [플러터 웹소켓] 메시지 수정 요청 완료 (ID: $chatId) -> $newContent');
-  // }
-  //
-  // /// ✨ [3-2] 서버로 메시지 실시간 삭제 요청 (상행선 - 삭제)
-  // void deleteMessage({
-  //   required int chatId,         // 어떤 메시지를 지울지 고유 ID
-  //   required int chatRoomId,
-  // }) {
-  //   if (_stompClient == null || !_isConnected) {
-  //     print('❌ [플러터 웹소켓] 서버와 연결되어 있지 않습니다.');
-  //     return;
-  //   }
-  //
-  //   Map<String, dynamic> deleteDto = {
-  //     'type': 'DELETE',          // ✨ 삭제 타입 지정
-  //     'chatId': chatId,
-  //     'chatRoomId': chatRoomId,
-  //   };
-  //
-  //   _stompClient?.send(
-  //     destination: '/app/guest/chat/delete', // 백엔드 @MessageMapping("/guest/chat/delete")와 매핑
-  //     body: jsonEncode(deleteDto),
-  //   );
-  //   print('🗑️ [플러터 웹소켓] 메시지 삭제 요청 완료 (ID: $chatId)');
-  // }
-
-  /// [4] 채팅방을 나갈 때 연결 안전하게 해제
+  /// 웹소켓 세션 안전 종료
   void disconnect() {
     _stompClient?.deactivate();
     _stompClient = null;
     _isConnected = false;
-    print('🔌 [플러터 웹소켓] 연결 안전하게 해제 완료');
+    developer.log('WebSocket 연결 해제 완료', name: 'ChatService');
   }
 }

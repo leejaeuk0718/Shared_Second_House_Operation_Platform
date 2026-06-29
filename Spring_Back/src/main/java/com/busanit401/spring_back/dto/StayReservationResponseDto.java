@@ -13,10 +13,6 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class StayReservationResponseDto {
 
-//    실행 흐름:
-//    Service에서 예약 Entity 조회 → 이 DTO로 변환 → Controller에서 프론트로 응답
-//    내 예약 목록 페이지 (/my/reservations) 에서 사용
-
     private Long id;                        // 예약 ID
     private Long accommodationId;           // 숙소 ID
     private String accommodationName;       // 숙소명
@@ -25,7 +21,7 @@ public class StayReservationResponseDto {
     private LocalDate endDate;              // 예약 종료일
     private StayReservationStatus status;   // CONFIRMED / CANCELLED
 
-    // Entity → DTO 변환 메서드
+    // ── Entity → DTO 변환 메서드 ──────────────────────────────
     public static StayReservationResponseDto from(StayReservation reservation) {
         return StayReservationResponseDto.builder()
                 .id(reservation.getId())
@@ -38,3 +34,19 @@ public class StayReservationResponseDto {
                 .build();
     }
 }
+
+/*
+ * ==================================================================================
+ * [파일 정보]
+ * 위치  : com.busanit401.spring_back.dto.StayReservationResponseDto
+ * 역할  : 예약 응답 DTO (Service → Controller → 프론트)
+ * 사용처 : StayReservationServiceImpl (getReservations, createReservation, getReservationsByAccommodation)
+ * ----------------------------------------------------------------------------------
+ * [파일 흐름]
+ * StayReservation 엔티티 → from() → 이 DTO → 프론트 응답
+ * 사용 화면: 내 예약 목록 (/my/reservations), 달력 비활성 날짜 표시
+ * ----------------------------------------------------------------------------------
+ * [정적 메서드]
+ * - from(reservation) : StayReservation Entity → 이 DTO 변환
+ * ==================================================================================
+ */

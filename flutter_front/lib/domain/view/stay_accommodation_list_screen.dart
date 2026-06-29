@@ -1,6 +1,34 @@
+/*
+ * ==================================================================================
+ * [파일 정보]
+ * 위치  : lib/domain/view/stay_accommodation_list_screen.dart
+ * 역할  : 숙소 목록 화면 (검색 + 무한 스크롤)
+ * 사용처 : app_router.dart 에서 라우팅
+ * ----------------------------------------------------------------------------------
+ * [연관 파일]
+ * - stay_accommodation_controller.dart   : 상태 및 데이터 (Provider)
+ * - stay_accommodation_detail_screen.dart : 카드 탭 시 이동
+ * - stay_constants.dart                  : kMonthOptionValues, monthOptionLabel
+ * - Spring: StayAccommodationController  : GET /stay/accommodations
+ * ----------------------------------------------------------------------------------
+ * [기능 목록]
+ * - 가격 계산기 (팀수 / 개월수 선택)
+ * - 숙소 이름 검색 + X 버튼 초기화
+ * - 무한 스크롤 (ScrollController → 하단 200px 전 자동 다음 3개 로드)
+ * - 추가 로딩 중 하단 CircularProgressIndicator 표시
+ * ----------------------------------------------------------------------------------
+ * [파일 흐름과 순서]
+ * initState → loadAccommodationsPaged(page=0) → 첫 3개 로드
+ * → ScrollController._onScroll() → 하단 감지 → loadAccommodationsPaged(page+1)
+ * → 검색 입력 → _search() → loadAccommodationsPaged(newKeyword, page=0) → 목록 교체
+ * → X 버튼 → _clearSearch() → 전체 목록 복원
+ * ==================================================================================
+ */
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_front/common/constants/app_colors.dart';
+import 'package:flutter_front/common/constants/stay_constants.dart';
 import 'package:flutter_front/common/widget/app_base_layout.dart';
 import 'package:flutter_front/common/widget/bottom_sheet_selector.dart';
 import 'package:flutter_front/domain/controller/stay_accommodation_controller.dart';
@@ -19,14 +47,47 @@ class StayAccommodationListScreen extends StatefulWidget {
 class _StayAccommodationListScreenState extends State<StayAccommodationListScreen> {
   int _months = 1;
   int _teams = 1;
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctrl = context.read<StayAccommodationController>();
-      if (ctrl.accommodations.isEmpty) ctrl.loadAccommodationsAndFaqs();
+      context.read<StayAccommodationController>().loadAccommodationsPaged();
     });
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      final ctrl = context.read<StayAccommodationController>();
+      if (ctrl.hasMore && !ctrl.isLoadingMore) {
+        ctrl.loadAccommodationsPaged(page: ctrl.currentPage + 1);
+      }
+    }
+  }
+
+  void _search() {
+    context.read<StayAccommodationController>().loadAccommodationsPaged(
+      newKeyword: _searchController.text.trim(),
+      page: 0,
+    );
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    context.read<StayAccommodationController>().loadAccommodationsPaged(
+      newKeyword: '',
+      page: 0,
+    );
   }
 
   @override
@@ -35,22 +96,95 @@ class _StayAccommodationListScreenState extends State<StayAccommodationListScree
 
     return AppBaseLayout(
       title: '숙소 목록',
-      body: ctrl.isLoadingList
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : Column(
-              children: [
-                _buildPriceCalculator(),
-                Expanded(
-                  child: ctrl.accommodations.isEmpty
-                      ? const Center(child: Text('등록된 숙소가 없습니다.'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: ctrl.accommodations.length,
-                          itemBuilder: (_, index) => _buildAccommodationCard(ctrl.accommodations[index]),
-                        ),
-                ),
-              ],
+      body: Column(
+        children: [
+          _buildPriceCalculator(),
+          _buildSearchBar(),
+          Expanded(
+            child: ctrl.isLoadingPaged
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : ctrl.pagedAccommodations.isEmpty
+                    ? const Center(child: Text('검색 결과가 없습니다.'))
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                        itemCount: ctrl.pagedAccommodations.length + (ctrl.isLoadingMore ? 1 : 0),
+                        itemBuilder: (_, index) {
+                          if (index == ctrl.pagedAccommodations.length) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                            );
+                          }
+                          return _buildAccommodationCard(ctrl.pagedAccommodations[index]);
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      color: AppColors.white,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 42,
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: '숙소 이름으로 검색',
+                        hintStyle: TextStyle(fontSize: 14, color: AppColors.textHint),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      style: const TextStyle(fontSize: 14),
+                      onSubmitted: (_) => _search(),
+                      onChanged: (v) => setState(() {}),
+                    ),
+                  ),
+                  if (_searchController.text.isNotEmpty)
+                    GestureDetector(
+                      onTap: _clearSearch,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(Icons.close, size: 18, color: AppColors.textHint),
+                      ),
+                    ),
+                ],
+              ),
             ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 42,
+            child: ElevatedButton(
+              onPressed: _search,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                elevation: 0,
+              ),
+              child: const Text('검색', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -67,21 +201,21 @@ class _StayAccommodationListScreenState extends State<StayAccommodationListScree
             children: [
               Expanded(
                 child: BottomSheetSelector(
-                  label: '개월수',
-                  value: _months,
-                  options: List.generate(12, (i) => i + 1),
-                  displayText: (v) => '$v개월',
-                  onSelected: (v) => setState(() => _months = v),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: BottomSheetSelector(
                   label: '팀수',
                   value: _teams,
                   options: List.generate(12, (i) => i + 1),
                   displayText: (v) => '$v팀',
                   onSelected: (v) => setState(() => _teams = v),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: BottomSheetSelector(
+                  label: '개월수',
+                  value: _months,
+                  options: kMonthOptionValues,
+                  displayText: monthOptionLabel,
+                  onSelected: (v) => setState(() => _months = v),
                 ),
               ),
             ],
@@ -155,7 +289,7 @@ class _StayAccommodationListScreenState extends State<StayAccommodationListScree
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text('기준: $_months개월 · $_teams팀 기준가', style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                  Text('기준: ${monthOptionLabel(_months)} · $_teams팀 기준가', style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,

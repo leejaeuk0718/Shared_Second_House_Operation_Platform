@@ -1,15 +1,17 @@
 package com.busanit401.spring_back.dto;
 
+import com.busanit401.spring_back.domain.entity.Restaurant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
- * Google Places 검색 결과 1건(맛집 한 곳). 비용 절감을 위해 <b>Pro 등급 필드만</b> 담는다.
- * (평점·가격·전화·영업시간 등 Enterprise/Atmosphere 필드는 제외 — 상세는 googleMapsUri로 연결)
+ * Google Places 검색 결과 1건(맛집 한 곳). 구글에서 읽어와 {@code sh_restaurant}에 저장하고,
+ * 이후 내 DB 조회 응답으로도 재사용한다.
  */
 @Data
 @Builder
@@ -17,29 +19,42 @@ import java.util.List;
 @AllArgsConstructor
 public class PlaceDTO {
 
-    // --- 기본 정보 ---
-    /** Places 고유 id (place id). 상세조회 등에 사용 가능. */
+    /** Places 고유 id (place id). 숙소별 중복 판단 기준. */
     private String id;
     /** 가게 이름 (displayName.text). */
     private String name;
-    /** 도로명/지번 주소 (formattedAddress). */
-    private String address;
+    /** 대표 타입 코드 (primaryType, 예: "japanese_restaurant"). */
+    private String primaryType;
+    /** 전화번호 (nationalPhoneNumber, 예: "051-123-4567"). */
+    private String phoneNumber;
     /** 위도 (location.latitude). */
     private Double latitude;
     /** 경도 (location.longitude). */
     private Double longitude;
-
-    // --- 음식점 종류 ---
-    /** 대표 타입 코드 (primaryType, 예: "japanese_restaurant"). */
-    private String primaryType;
-    /** 대표 타입 표시명 (primaryTypeDisplayName.text, 예: "일식당"). */
-    private String primaryTypeName;
-    /** 전체 타입 코드 목록 (types, 예: ["japanese_restaurant","restaurant","food"]). */
-    private List<String> types;
-
-    // --- 상태/링크 ---
-    /** 영업 상태 (businessStatus, 예: OPERATIONAL/CLOSED_TEMPORARILY). */
-    private String businessStatus;
-    /** 구글 지도 링크 (googleMapsUri) — 평점·영업시간 등 상세는 이 링크로 연결. */
+    /** 구글 지도 링크 (googleMapsUri). */
     private String googleMapsUri;
+    /** 요일별 영업시간 설명 (regularOpeningHours.weekdayDescriptions). */
+    private List<String> weekdayDescriptions;
+    /** 어느 숙소 부근인지 (sh_stay_accommodation FK). 응답에만 채워짐. */
+    private Long accommodationId;
+    /** 인기도 순위 (0이 가장 인기). 구글 응답 순서 기준. */
+    private Integer popularityRank;
+
+    /** 엔티티 → DTO 변환 (내 DB 조회 응답용). */
+    public static PlaceDTO from(Restaurant r) {
+        String desc = r.getWeekdayDescriptions();
+        return PlaceDTO.builder()
+                .id(r.getPlaceId())
+                .name(r.getName())
+                .primaryType(r.getPrimaryType())
+                .phoneNumber(r.getPhoneNumber())
+                .latitude(r.getLatitude())
+                .longitude(r.getLongitude())
+                .googleMapsUri(r.getGoogleMapsUri())
+                .weekdayDescriptions(desc == null || desc.isBlank()
+                        ? null : Arrays.asList(desc.split("\n")))
+                .accommodationId(r.getAccommodation().getId())
+                .popularityRank(r.getPopularityRank())
+                .build();
+    }
 }

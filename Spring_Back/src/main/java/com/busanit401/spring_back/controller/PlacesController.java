@@ -21,19 +21,27 @@ public class PlacesController {
 
     private final PlacesService placesService;
 
-    @GetMapping("/restaurants")
-    @Operation(summary = "주변 맛집 검색 (좌표+반경)",
-            description = "위도/경도 중심 radius(m) 반경의 맛집을 평점·관련도 순으로 반환. Google Places(New) Nearby Search.")
-    public List<PlaceDTO> nearbyRestaurants(
-            @Parameter(description = "위도", example = "35.1587")
-            @RequestParam double lat,
-            @Parameter(description = "경도", example = "129.1604")
-            @RequestParam double lng,
-            @Parameter(description = "반경(미터, 최대 50000)", example = "1000")
-            @RequestParam(defaultValue = "1000") int radius,
-            @Parameter(description = "결과 개수(최대 20)", example = "10")
-            @RequestParam(defaultValue = "10") int limit) {
+    @GetMapping("/restaurants/sync")
+    @Operation(summary = "주변 맛집 동기화 (숙소 좌표 기준 구글 호출 → 내 DB 저장)",
+            description = "숙소(accommodationId) 좌표 중심 radius(m) 반경의 맛집을 Google Places(New) Nearby Search로 "
+                    + "가져와 그 숙소 FK로 sh_restaurant에 저장(있으면 갱신)하고 저장 내용을 반환.")
+    public List<PlaceDTO> syncNearbyRestaurants(
+            @Parameter(description = "숙소 id (sh_stay_accommodation)", example = "1")
+            @RequestParam Long accommodationId,
+            @Parameter(description = "반경(미터, 최대 50000)", example = "2000")
+            @RequestParam(defaultValue = "2000") int radius,
+            @Parameter(description = "결과 개수(최대 20)", example = "20")
+            @RequestParam(defaultValue = "20") int limit) {
 
-        return placesService.nearbyRestaurants(lat, lng, radius, limit);
+        return placesService.syncNearbyRestaurants(accommodationId, radius, limit);
+    }
+
+    @GetMapping("/restaurants")
+    @Operation(summary = "저장된 맛집 조회 (내 DB, 숙소별)",
+            description = "특정 숙소(accommodationId) 부근으로 sh_restaurant에 저장된 맛집을 이름순으로 반환. 구글 미호출.")
+    public List<PlaceDTO> listSavedRestaurants(
+            @Parameter(description = "숙소 id (sh_stay_accommodation)", example = "1")
+            @RequestParam Long accommodationId) {
+        return placesService.listSavedRestaurants(accommodationId);
     }
 }

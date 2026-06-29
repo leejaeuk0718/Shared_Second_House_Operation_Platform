@@ -3,10 +3,13 @@ package com.busanit401.spring_back.controller;
 import com.busanit401.spring_back.domain.service.ChatBotService;
 import com.busanit401.spring_back.domain.service.ChatBotService.SearchHit;
 import com.busanit401.spring_back.domain.service.rag.SuggesterForRag;
+import com.busanit401.spring_back.security.auth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -14,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@Log4j2
 @Tag(name = "Joldo - 운영 FAQ 검색(최종)", description = "LuceneBM25 / 임베딩 개별 확인")
 @RestController
 @RequestMapping("/api/chatBot")
@@ -65,11 +69,16 @@ public class ChatBotController {
             description = "가중합 융합으로 상위 topK FAQ를 근거로 추리고, 그 근거만 바탕으로 "
                     + "gemini-2.5-flash가 최종 답변을 생성한다. Gemini 키 필요(파라미터 key).")
     public ChatBotService.AnswerResult chat(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @Parameter(description = "사용자 질의", example = "반려동물 동반 가능한가요?")
             @RequestParam String q,
             @Parameter(description = "근거로 쓸 FAQ 개수", example = "3")
             @RequestParam(defaultValue = "3") int topK) {
 
+        // /api/** 가 permitAll 이라 토큰이 없으면 userDetails 가 null 일 수 있다.
+        // (SecurityConfig는 건드리지 않음 — JWT가 오면 검증해 식별, 없으면 그대로 통과)
+        Long userId = (userDetails != null) ? userDetails.getId() : null;
+        log.info("✅ [ChatBotController] RAG 답변 요청 → userId: {}, q: {}", userId, q);
         return chatBotService.answer(q, topK);
     }
 

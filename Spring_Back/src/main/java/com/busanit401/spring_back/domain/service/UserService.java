@@ -55,12 +55,20 @@ public class UserService {
      * 회원정보 수정
      */
     @Transactional
-    public void updateUser(Long userId, UserSimpleReq request
-    ) {
-        User user = findUser(userId);
-        user.update(request.getUsername(), request.getNickname());
+    public void updateUser(Long userId, UserSimpleReq request) {
 
-        log.info("회원정보 수정 : {}", userId);
+        log.info("updateUser 시작");
+
+        User user = findUser(userId);
+
+        log.info("기존 username = {}", user.getUsername());
+
+        user.update(
+                request.getUsername(),
+                request.getNickname()
+        );
+
+        log.info("변경 완료");
     }
 
     @Transactional
@@ -112,5 +120,9 @@ public class UserService {
     private User findUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(UserNotFoundException::new);
+    }
+
+    public boolean existsByEmail(String email) {
+        return userRepository.existsByEmail(email);
     }
 }

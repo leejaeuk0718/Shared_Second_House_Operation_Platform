@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_front/common/constants/app_colors.dart'; // 🟩 공통 컬러 임포트 경로 확인
 import 'package:flutter_front/domain/service/guest_chat_service.dart';
 
 class GuestChatScreen extends StatefulWidget {
@@ -27,8 +28,6 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
 
   bool _isLoading = true;
 
-  static const Color primaryNavy = Color(0xFF23399D);
-
   @override
   void initState() {
     super.initState();
@@ -36,46 +35,38 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
   }
 
   Future<void> _initChatRoomSequence() async {
-    List<Map<String, dynamic>> history = await _chatService.getChatHistory(widget.chatRoomId);
+    try {
+      List<Map<String, dynamic>> history = await _chatService.getChatHistory(widget.chatRoomId);
 
-    if (mounted) {
-      setState(() {
-        _messages.addAll(history);
-        _isLoading = false;
-      });
-      _scrollToBottom();
-    }
-
-    _chatService.connectWebSocket(
-      chatRoomId: widget.chatRoomId,
-      onMessageReceived: (Map<String, dynamic> incomingMessage) {
-        if (!mounted) return;
-
-        // // 🟩 [주석 처리 반영] 현재는 일반 대화(TALK)만 처리하므로 분기 로직은 백업 주석화
-        // final String type = incomingMessage['type'] ?? 'TALK';
-        // // final int targetChatId = incomingMessage['chatId'] ?? 0;
-        //
-        // setState(() {
-        //   if (type == 'TALK') {
-        //     // 일반 대화는 리스트에 순수 추가
-        //     _messages.add(incomingMessage);
-        //   }
-        //   /* [일정 단축으로 인한 수정/삭제 기능 일시 주석 처리]
-        //   else if (type == 'EDIT') {
-        //     final index = _messages.indexWhere((m) => (m['chatId'] ?? m['id']) == targetChatId);
-        //     if (index != -1) {
-        //       _messages[index]['content'] = incomingMessage['content'];
-        //       _messages[index]['messageContent'] = incomingMessage['content'];
-        //     }
-        //   }
-        //   else if (type == 'DELETE') {
-        //     _messages.removeWhere((m) => (m['chatId'] ?? m['id']) == targetChatId);
-        //   }
-        //   */
-        // });
+      if (mounted) {
+        setState(() {
+          _messages.addAll(history);
+          _isLoading = false;
+        });
         _scrollToBottom();
-      },
-    );
+      }
+
+      _chatService.connectWebSocket(
+        chatRoomId: widget.chatRoomId,
+        onMessageReceived: (Map<String, dynamic> incomingMessage) {
+          if (!mounted) return;
+
+          setState(() {
+            _messages.add(incomingMessage);
+          });
+          _scrollToBottom();
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('채팅방을 불러오는 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -110,84 +101,6 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
     }
   }
 
-  /* [일정 단축으로 인한 수정/삭제 모달 및 익스텐션 UI 관련 메서드 전체 주석 처리]
-  void _showChatOptions(BuildContext context, Map<String, dynamic> chat) {
-    final int messageId = chat['chatId'] ?? chat['id'] ?? 0;
-    final String currentText = chat['content'] ?? chat['messageContent'] ?? '';
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.edit, color: primaryNavy),
-                title: const Text('메시지 수정'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showEditDialog(messageId, currentText);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                title: const Text('메시지 삭제', style: TextStyle(color: Colors.redAccent)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _processDeleteMessage(messageId);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showEditDialog(int messageId, String oldText) {
-    final textController = TextEditingController(text: oldText);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('메시지 수정', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: textController,
-          decoration: const InputDecoration(hintText: "수정할 내용을 입력하세요"),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _processEditMessage(messageId, textController.text.trim());
-            },
-            child: const Text('수정', style: TextStyle(color: primaryNavy)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _processEditMessage(int messageId, String newContent) {
-    if (newContent.isEmpty) return;
-    // _chatService.editMessage(
-    //   chatId: messageId,
-    //   chatRoomId: widget.chatRoomId,
-    //   newContent: newContent,
-    // );
-  }
-
-  void _processDeleteMessage(int messageId) {
-    // _chatService.deleteMessage(
-    //   chatId: messageId,
-    //   chatRoomId: widget.chatRoomId,
-    // );
-  }
-  */
-
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 150), () {
       if (_scrollController.hasClients) {
@@ -203,19 +116,22 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
           '${widget.chatRoomId}번 채팅방',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: AppColors.primaryLight,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
-        backgroundColor: primaryNavy,
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: primaryNavy))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : Column(
         children: [
           Expanded(
@@ -245,18 +161,18 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
                       if (!isMe) ...[
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor: primaryNavy.withOpacity(0.1),
-                          child: const Icon(Icons.person, color: primaryNavy, size: 18),
+                          // 🟩 [서식 반영] 상대방 프로필 아바타를 포레스트 그린 소프트 톤으로 유연하게 매칭
+                          backgroundColor: AppColors.primary.withOpacity(0.1),
+                          child: const Icon(Icons.person, color: AppColors.primary, size: 18),
                         ),
                         const SizedBox(width: 8),
                       ],
 
                       if (isMe && formattedTime.isNotEmpty) ...[
-                        Text(formattedTime, style: const TextStyle(fontSize: 10, color: Colors.black38)),
+                        Text(formattedTime, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)), // TextStyle 앞에 const 가능
                         const SizedBox(width: 6),
                       ],
 
-                      // 🟩 [교정 완료] onLongPress 진입로를 null로 차단하여 롱클릭 모달창이 뜨지 않도록 완전 방어
                       GestureDetector(
                         onLongPress: null,
                         child: Column(
@@ -265,7 +181,7 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
                             if (!isMe) ...[
                               Text(
                                 senderName,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54),
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
                               ),
                               const SizedBox(height: 4),
                             ],
@@ -276,7 +192,8 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
                                 maxWidth: MediaQuery.of(context).size.width * 0.55,
                               ),
                               decoration: BoxDecoration(
-                                color: isMe ? const Color(0xFFD6E4FF) : Colors.white,
+                                // 🟩 [서식 반영] 내가 보낸 말풍선은 연한 그린(surfaceVariant 계열), 상대방은 깨끗한 흰색(surface) 지정
+                                color: isMe ? AppColors.border : AppColors.border,
                                 borderRadius: BorderRadius.only(
                                   topLeft: const Radius.circular(12),
                                   topRight: const Radius.circular(12),
@@ -285,7 +202,7 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
+                                    color: Colors.black.withOpacity(0.03),
                                     blurRadius: 3,
                                     offset: const Offset(0, 1),
                                   )
@@ -293,7 +210,7 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
                               ),
                               child: Text(
                                 messageContent,
-                                style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.3),
+                                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, height: 1.3),
                               ),
                             ),
                           ],
@@ -302,7 +219,8 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
 
                       if (!isMe && formattedTime.isNotEmpty) ...[
                         const SizedBox(width: 6),
-                        Text(formattedTime, style: const TextStyle(fontSize: 10, color: Colors.black38)),
+                        // 🟩 Text 앞의 const를 제거하고, 변하지 않는 TextStyle 앞에 const를 붙여줍니다.
+                        Text(formattedTime, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
                       ],
                     ],
                   ),
@@ -311,35 +229,39 @@ class _GuestChatScreenState extends State<GuestChatScreen> {
             ),
           ),
 
+          // 🟩 하단 메시지 입력 섹션
           SafeArea(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, -2),
-                  )
-                ],
+                color: AppColors.primaryLight, // 공통 흰색 바탕
+                border: const Border(
+                  top: BorderSide(color: AppColors.border, width: 0.5), // 세련된 한 줄 분할선
+                ),
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _messageController,
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: '메시지를 입력하세요...',
+                        hintStyle: TextStyle(color: AppColors.textHint),
+                        // 🟩 하단 바 내부 폼은 불필요한 Outline 외곽선을 걷어내고 플랫한 디자인 톤 유지
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                       ),
                       onSubmitted: (_) => _handleSend(),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  // 🟩 [서식 반영] 전송 아이콘 버튼 색상을 주 메인 색상인 포레스트 그린으로 교체
                   IconButton(
-                    icon: const Icon(Icons.send, color: primaryNavy),
+                    icon: const Icon(Icons.send, color: AppColors.primary),
                     onPressed: _handleSend,
                   ),
                 ],

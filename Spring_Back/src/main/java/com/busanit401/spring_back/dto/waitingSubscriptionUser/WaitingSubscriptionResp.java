@@ -15,6 +15,7 @@ public class WaitingSubscriptionResp {
     private Long subscriptionId;
     private Long userId;
     private String username;
+    private Long accommodationId;
     private MemberRole memberRole;
     private MemberStatus status;
     private LocalDateTime requestedAt;
@@ -23,6 +24,7 @@ public class WaitingSubscriptionResp {
     public static WaitingSubscriptionResp from(WaitingSubscriptionUser waiting) {
         return WaitingSubscriptionResp.builder()
                 .waitingId(waiting.getId())
+                .accommodationId(waiting.getSubscriptionsUser().getAccommodationId())  // 추가
                 .subscriptionId(waiting.getSubscriptionsUser().getId())
                 .userId(waiting.getUser().getId())
                 .username(waiting.getUser().getUsername())

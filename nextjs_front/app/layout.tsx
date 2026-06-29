@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import FloatingChatbot from './components/FloatingChatbot';
 
 export const metadata: Metadata = {
   title: '세컨하우스',
@@ -19,6 +20,7 @@ export default function RootLayout({
         <Navbar />
         <main>{children}</main>
         <Footer />
+        <FloatingChatbot />
       </body>
     </html>
   );

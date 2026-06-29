@@ -34,7 +34,8 @@ android {
         applicationId = "com.example.flutter_front"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // geolocator + flutter_foreground_task가 요구하는 최소 SDK 보장 (Android 7.0)
+        minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -1,119 +1,90 @@
-// lib/domain/view/delivery_admin_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_front/domain/service/delivery_service.dart'; // 프로젝트 경로 기준
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class DeliveryAdminScreen extends StatefulWidget {
-  final int orderId; // 외부에서 주문 ID를 넘겨받을 수 있도록 설계
-
-  const DeliveryAdminScreen({
-    Key? key,
-    this.orderId = 6, // 기본값은 테스트하기 편하게 6번 주문으로 세팅!
-  }) : super(key: key);
+  const DeliveryAdminScreen({Key? key}) : super(key: key);
 
   @override
   State<DeliveryAdminScreen> createState() => _DeliveryAdminScreenState();
 }
 
 class _DeliveryAdminScreenState extends State<DeliveryAdminScreen> {
-  final DeliveryService _deliveryService = DeliveryService();
-  String _currentStatus = "조회 중...";
-  bool _isLoading = false;
-
-  // 상태 변경 API 호출 및 UI 갱신 함수
-  Future<void> _changeStatus(int orderId, String status) async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // 백엔드와 통신하는 서비스 레이어 호출 (PUT)
-    bool success = await _deliveryService.updateDeliveryStatus(orderId, status);
-
-    if (success) {
-      setState(() {
-        _currentStatus = status;
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("$status 업데이트 실패. 서버 설정을 확인하세요.")),
-      );
-    }
-
-    setState(() {
-      _isLoading = false;
-    });
-  }
+  List<dynamic> orders = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // 초기 뷰 로딩 시 상태값 기본 세팅
-    _currentStatus = "주문 대기 중";
+    fetchOrders();
+  }
+
+  Future<void> fetchOrders() async {
+    setState(() => isLoading = true);
+    try {
+      final response = await http.get(Uri.parse('http://10.0.2.2:8080/api/orders/admin'));
+      if (response.statusCode == 200) {
+        setState(() {
+          orders = json.decode(utf8.decode(response.bodyBytes));
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("에러 발생: $e");
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> updateStatus(int orderId, String status) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('http://10.0.2.2:8080/api/orders/$orderId/status'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'status': status}),
+      );
+      if (response.statusCode == 200) fetchOrders();
+    } catch (e) {
+      debugPrint("상태 변경 에러: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("🚚 배달 주문 상태 제어판"),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "현재 [${widget.orderId}번 주문] 배달 상태",
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      appBar: AppBar(title: const Text('관리자 배송/주문 관리')),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+        itemCount: orders.length,
+        itemBuilder: (context, index) {
+          final order = orders[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: ListTile(
+              title: Text('주문번호: SH-2026-${order['order_id']}'),
+              subtitle: Text('상태: ${order['status']}'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(icon: Icon(Icons.local_shipping, color: Colors.blue),
+                      onPressed: () => updateStatus(order['order_id'], "배송중")),
+                  IconButton(icon: Icon(Icons.check_circle, color: Colors.green),
+                      onPressed: () => updateStatus(order['order_id'], "배송완료")),
+                ],
               ),
-              const SizedBox(height: 10),
-
-              // 배달 상태를 보여주는 텍스트 존
-              Text(
-                _currentStatus,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: _currentStatus == "배송중"
-                      ? Colors.orange
-                      : (_currentStatus == "배송완료" ? Colors.green : Colors.black),
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // 로딩 중일 때 인디케이터 표시
-              if (_isLoading) const CircularProgressIndicator(),
-
-              if (!_isLoading) ...[
-                // 버튼 1: 배송중 변경
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                    onPressed: () => _changeStatus(widget.orderId, "배송중"),
-                    icon: const Icon(Icons.delivery_dining, color: Colors.white),
-                    label: const Text("배송 시작하기 (배송중)", style: TextStyle(color: Colors.white, fontSize: 16)),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: Text('주문 상세 정보'),
+                    content: Text('주소: ${order['delivery_address']}\n금액: ${order['total_amount']}원'),
+                    actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('닫기'))],
                   ),
-                ),
-                const SizedBox(height: 15),
-
-                // 버튼 2: 배송완료 변경
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    onPressed: () => _changeStatus(widget.orderId, "배송완료"),
-                    icon: const Icon(Icons.check_circle, color: Colors.white),
-                    label: const Text("배송 완료 처리", style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ),
-                ),
-              ]
-            ],
-          ),
-        ),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }

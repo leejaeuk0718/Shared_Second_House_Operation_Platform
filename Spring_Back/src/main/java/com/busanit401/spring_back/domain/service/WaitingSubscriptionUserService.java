@@ -9,6 +9,7 @@ import com.busanit401.spring_back.dto.waitingSubscriptionUser.WaitingSubscriptio
 import com.busanit401.spring_back.enums.MemberStatus;
 import com.busanit401.spring_back.enums.NotificationType;
 import com.busanit401.spring_back.enums.SubscriptionStatus;
+import com.busanit401.spring_back.exception.BusinessException;
 import com.busanit401.spring_back.exception.DuplicateException;
 import com.busanit401.spring_back.exception.EntityNotFoundException;
 import com.busanit401.spring_back.exception.ErrorCode;
@@ -21,6 +22,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,6 +46,10 @@ public class WaitingSubscriptionUserService {
 
         validateDuplicateSubscription(leaderId, req.getAccommodationId());
 
+        // [날짜 검증 추가] 같은 숙소의 PENDING/ACTIVE 구독과 날짜 겹침 사전 차단 (save() 전 호출)
+        validateDateOverlap(req.getAccommodationId(), req.getStartDate(),
+                req.getStartDate().plusMonths(req.getDurationMonths()));
+
         List<User> members = findMembers(req.getMemberIdentifiers());
         validateMembersFound(req.getMemberIdentifiers(), members);
 
@@ -53,6 +59,17 @@ public class WaitingSubscriptionUserService {
 
         List<WaitingSubscriptionUser> waitingList = buildWaitingList(subscriptionsUser, leader, members);
         waitingRepository.saveAll(waitingList);
+
+        // 멤버 없이 대표만 신청한 경우 즉시 관리자 알림 발송
+        boolean allApproved = waitingList.stream()
+                .allMatch(w -> w.getStatus() == MemberStatus.APPROVED);
+        if (allApproved) {
+            notificationService.notifyAdmin(
+                    NotificationType.SUBSCRIPTION_READY,
+                    "새로운 구독 신청이 승인 대기 중입니다. (구독 ID: " + subscriptionsUser.getId() + ")",
+                    subscriptionsUser.getId()
+            );
+        }
 
         return waitingList.stream()
                 .map(WaitingSubscriptionResp::from)
@@ -147,6 +164,17 @@ public class WaitingSubscriptionUserService {
         if (subscriptionsUserRepository.existsByUserIdAndAccommodationIdAndStatus(
                 userId, accommodationId, SubscriptionStatus.ACTIVE)) {
             throw new DuplicateException(ErrorCode.DUPLICATE_SUBSCRIPTION);
+        }
+    }
+
+    // [날짜 검증 추가] 신청 날짜가 기존 PENDING/ACTIVE 구독과 겹치는지 체크
+    private void validateDateOverlap(Long accommodationId, LocalDate newStart, LocalDate newEnd) {
+        List<SubscriptionStatus> checkStatuses = List.of(SubscriptionStatus.PENDING, SubscriptionStatus.ACTIVE);
+        boolean hasOverlap = !subscriptionsUserRepository
+                .findOverlappingSubscriptions(accommodationId, newStart, newEnd, checkStatuses)
+                .isEmpty();
+        if (hasOverlap) {
+            throw new BusinessException(ErrorCode.SUBSCRIPTION_DATE_CONFLICT);
         }
     }
 

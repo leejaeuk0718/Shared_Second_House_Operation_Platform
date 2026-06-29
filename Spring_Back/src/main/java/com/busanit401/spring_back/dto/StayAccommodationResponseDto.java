@@ -13,9 +13,6 @@ import java.util.List;
 @NoArgsConstructor
 public class StayAccommodationResponseDto {
 
-//    실행 흐름:
-//    Service에서 Entity 조회 → 이 DTO로 변환 → Controller에서 프론트로 응답
-
     private Long id;                // 숙소 ID
     private String name;            // 숙소명
     private String address;         // 주소
@@ -40,7 +37,7 @@ public class StayAccommodationResponseDto {
 
     private List<StayAccommodationPriceDto> prices; // 공통 할인율 구간 목록
 
-    // Entity → DTO 변환 메서드
+    // ── Entity → DTO 변환 메서드 ──────────────────────────────
     public static StayAccommodationResponseDto from(StayAccommodation accommodation, List<StayAccommodationPriceDto> prices) {
         return StayAccommodationResponseDto.builder()
                 .id(accommodation.getId())
@@ -63,3 +60,23 @@ public class StayAccommodationResponseDto {
                 .build();
     }
 }
+
+/*
+ * ==================================================================================
+ * [파일 정보]
+ * 위치  : com.busanit401.spring_back.dto.StayAccommodationResponseDto
+ * 역할  : 숙소 응답 DTO (Service → Controller → 프론트)
+ * 사용처 : StayAccommodationServiceImpl (getAccommodations, getAccommodation, createAccommodation, updateAccommodation)
+ * ----------------------------------------------------------------------------------
+ * [파일 흐름]
+ * StayAccommodation 엔티티 + prices → from() → 이 DTO → 프론트 응답
+ * 사용 화면: 숙소 목록 페이지, 숙소 상세 페이지
+ * ----------------------------------------------------------------------------------
+ * [정적 메서드]
+ * - from(accommodation, prices) : Entity + 할인율 목록 → 이 DTO 변환
+ * ----------------------------------------------------------------------------------
+ * [주의사항 / 참고]
+ * - prices : 공통 할인율 구간 목록 (StayAccommodationPriceDto 리스트)
+ *   → 프론트에서 개월수 선택 시 할인율 자동 계산에 사용
+ * ==================================================================================
+ */

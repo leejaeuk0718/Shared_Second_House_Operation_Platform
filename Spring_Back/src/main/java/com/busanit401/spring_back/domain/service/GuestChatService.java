@@ -20,16 +20,23 @@ public class GuestChatService {
     private final GuestChatRoomRepository guestChatRoomRepository;
     private final GuestChatMessageRepository guestChatMessageRepository;
 
-    // 상품 구독 완료 시 채팅방 자동 생성
-    // 채팅방 이름 "{houseId}번 하우스 채팅방"으로 자동 설정됨.
     @Transactional
-    public GuestChatRoom createChatRoom(Long houseId) {
-        return guestChatRoomRepository.findByHouseId(houseId)
+    public GuestChatRoom getOrCreateChatRoom(Long accommodationId, String roomName) {
+        if (accommodationId == null) {
+            log.error("❌ 채팅방 생성 실패: accommodationId가 null입니다.");
+            throw new IllegalArgumentException("숙소 ID는 필수입니다.");
+        }
+
+        // 💡 엔티티 내부 필드명(houseId)에 맞춰 findByHouseId로 통일하여 정합성 확보
+        return guestChatRoomRepository.findByHouseId(accommodationId)
                 .orElseGet(() -> {
+                    log.info("🆕 [{}]번 숙소의 채팅방이 없어 신규 개설합니다.", accommodationId);
+
                     GuestChatRoom newRoom = GuestChatRoom.builder()
-                            .houseId(houseId)
-                            .roomName(houseId + "번 하우스 채팅방") //자동 이름 설정
+                            .houseId(accommodationId)
+                            .roomName(roomName + " 채팅방")
                             .build();
+
                     return guestChatRoomRepository.save(newRoom);
                 });
     }
@@ -38,20 +45,21 @@ public class GuestChatService {
     public GuestChatRoom getChatRoom(Long houseId) {
         return guestChatRoomRepository.findByHouseId(houseId)
                 .orElseThrow(() -> {
-                    // ⚠️채팅방 조회 실패 시 확인용 콘솔로그⚠️
                     log.info("[⚠️ 게스트 채팅] 채팅방이 존재하지 않음 - 요청된 하우스 ID: {}", houseId);
                     return new IllegalArgumentException("해당 하우스의 채팅방이 존재하지 않습니다. 하우스 ID: " + houseId);
                 });
     }
 
-    // 채팅방 입장 성공 시 과거 메시지 내역 조회 (기존 유지)
+    // 채팅방 입장 성공 시 과거 메시지 내역 조회
     public List<GuestChatMessage> getChatHistory(Long guestChatRoomId) {
         return guestChatMessageRepository.findByGuestChatRoomIdOrderBySentAtAsc(guestChatRoomId);
     }
 
-    // 실시간으로 수신된 메시지 DB 저장 (기존 유지)
+    // 실시간으로 수신된 메시지 DB 저장
     @Transactional
     public GuestChatMessage saveMessage(Long chatRoomId, Long senderId, String senderName, String content) {
+        log.info("💾 DB 저장 시도 -> room: {}, senderId: {}, name: {}, content: {}",
+                chatRoomId, senderId, senderName, content);
         GuestChatRoom chatRoom = guestChatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게스트 채팅방입니다. ID: " + chatRoomId));
 

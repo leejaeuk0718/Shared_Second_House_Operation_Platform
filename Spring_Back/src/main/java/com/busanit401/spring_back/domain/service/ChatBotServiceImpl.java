@@ -124,9 +124,10 @@ public class ChatBotServiceImpl implements ChatBotService {
     /** 근거 자료만 바탕으로 답하도록 지시하는 고객센터 상담원 프롬프트. */
     private String buildPrompt(String context, String query) {
         return """
-                너는 '마이세컨플레이스' 고객센터 상담원이야.
+                너는 '세컨하우스' 고객센터 상담원이야.
                 아래 FAQ 자료만 근거로 사용자 질문에 친절하게 답변해줘.
-                자료에 없는 내용이면 모른다고 솔직하게 말하고, 02-6952-1602로 문의를 안내해.
+                자료에 없는 내용이면 모른다고 솔직하게 말하고, 고객센터로 문의를 안내해.
+                사용자 질문이 의미 없는 입력이거나 참고 자료와 무관하면, 답을 지어내지 말고 모른다고 안내해.
 
                 [참고 자료]
                 %s

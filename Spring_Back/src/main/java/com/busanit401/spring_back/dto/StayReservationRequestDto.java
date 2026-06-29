@@ -11,12 +11,24 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class StayReservationRequestDto {
 
-//    실행 흐름:
-//    구독 중인 유저가 예약 캘린더에서 날짜 선택 → 이 DTO로 데이터 전송
-//    Controller에서 받아서 → Service에서 Entity로 변환 후 저장
-
     private Long accommodationId;   // 예약할 숙소 ID
     private Long userId;            // 예약한 유저 ID
     private LocalDate startDate;    // 예약 시작일
     private LocalDate endDate;      // 예약 종료일
 }
+
+/*
+ * ==================================================================================
+ * [파일 정보]
+ * 위치  : com.busanit401.spring_back.dto.StayReservationRequestDto
+ * 역할  : 예약 생성 요청 DTO (프론트 → Controller → Service)
+ * 사용처 : StayReservationController.createReservation()
+ * ----------------------------------------------------------------------------------
+ * [파일 흐름]
+ * 프론트(캘린더 날짜 선택) → POST /api/stay/reservations → 이 DTO 수신
+ * → StayReservationServiceImpl.createReservation() 에서 Entity 변환 후 저장
+ * ----------------------------------------------------------------------------------
+ * [주의사항 / 참고]
+ * ⚠️ [TODO] 로그인 완전 연동 후 userId 필드 제거 → userDetails.getId() 로 교체 예정
+ * ==================================================================================
+ */

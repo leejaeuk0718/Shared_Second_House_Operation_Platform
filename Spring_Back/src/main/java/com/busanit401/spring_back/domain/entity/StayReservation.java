@@ -44,8 +44,30 @@ public class StayReservation extends BaseTimeEntity {
     @Column(nullable = false)
     private StayReservationStatus status; // CONFIRMED(예약 확정) / CANCELLED(예약 취소)
 
-    // 예약 취소 비즈니스 메서드 (@Setter 대신 사용)
+    // ── 예약 취소 비즈니스 메서드 (@Setter 대신 사용) ────────
+    // status 를 CANCELLED 로 변경 (DB 삭제 아님)
     public void cancel() {
         this.status = StayReservationStatus.CANCELLED;
     }
 }
+
+/*
+ * ==================================================================================
+ * [파일 정보]
+ * 위치  : com.busanit401.spring_back.domain.entity.StayReservation
+ * 역할  : 숙소 예약 엔티티 (DB 테이블: sh_stay_reservation)
+ * ----------------------------------------------------------------------------------
+ * [연관 파일]
+ * - StayAccommodation.java        : 숙소 (N:1, LAZY)
+ * - User.java                     : 예약한 유저 (N:1, LAZY)
+ * - StayReservationStatus.java    : 상태 Enum (CONFIRMED / CANCELLED)
+ * - StayReservationServiceImpl.java : cancel() 호출
+ * ----------------------------------------------------------------------------------
+ * [비즈니스 메서드]
+ * - cancel() : 예약 취소 → status = CANCELLED (삭제 아님, 이력 보존)
+ * ----------------------------------------------------------------------------------
+ * [주의사항 / 참고]
+ * - EnumType.STRING 사용 → DB에 "CONFIRMED", "CANCELLED" 문자열로 저장
+ * - cancel() 은 상태 변경만 수행 → 취소된 예약도 DB에 남아 이력 조회 가능
+ * ==================================================================================
+ */

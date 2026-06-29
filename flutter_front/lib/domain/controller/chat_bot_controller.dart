@@ -24,11 +24,23 @@ class ChatBotController extends ChangeNotifier {
   bool get isSending => _isSending;
 
   ChatBotController() {
-    // 최초 1회 환영 인사 (앱 수명 동안 유지)
-    _messages.add(ChatMessage(
-      text: '안녕하세요! 세컨하우스 운영 FAQ 챗봇입니다. 궁금한 점을 물어보세요. 🙂',
-      isMe: false,
-    ));
+    // 최초 1회 환영 인사
+    _messages.add(_welcomeMessage());
+  }
+
+  ChatMessage _welcomeMessage() => ChatMessage(
+        text: '안녕하세요! 세컨하우스 운영 FAQ 챗봇입니다. 궁금한 점을 물어보세요. 🙂',
+        isMe: false,
+      );
+
+  /// 대화 내역을 비우고 환영 인사만 남긴다.
+  /// 로그아웃/재로그인 시 이전 사용자의 대화가 남지 않도록 호출한다.
+  /// (대화는 메모리에만 보관되므로 이 리스트만 비우면 된다.)
+  void clear() {
+    _messages
+      ..clear()
+      ..add(_welcomeMessage());
+    notifyListeners();
   }
 
   /// 질문 전송 → 백엔드 RAG 답변 수신

@@ -10,15 +10,14 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-
 import java.io.IOException;
+
 @Slf4j
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
@@ -41,7 +40,8 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
                     loginRequest.getUsername(), loginRequest.getPassword());
             return authenticationManager.authenticate(authenticationToken);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new org.springframework.security.authentication.AuthenticationServiceException(
+                    "로그인 요청 형식이 올바르지 않습니다.", e);
         }
     }
 
@@ -49,28 +49,20 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException, ServletException {
         String accessToken = jwtUtil.generateToken(authResult.getName());
 
-        // 토큰이 블랙리스트에 있는지 확인
-        if (tokenBlacklistService.isBlacklisted(accessToken)) {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-            response.getWriter().write("{\"error\": \"Access Token is blacklisted.\"}");
-            return;
-        }
+        // 방금 발급한 토큰을 블랙리스트 체크하는 분기 제거됨 (도달 불가능한 코드였음)
 
-        // 블랙리스트에 없으면 계속 진행
         response.setHeader("Authorization", "Bearer " + accessToken);
 
-        // Refresh Token 생성 및 쿠키에 추가 (기존 코드 유지)
         String refreshToken = jwtUtil.generateRefreshToken(authResult.getName());
         Cookie refreshTokenCookie = new Cookie("refresh_token", refreshToken);
         refreshTokenCookie.setHttpOnly(true);
         refreshTokenCookie.setSecure(true);
         refreshTokenCookie.setPath("/");
-        refreshTokenCookie.setMaxAge(Math.toIntExact(jwtUtil.getRefreshExpiration()));
+        refreshTokenCookie.setMaxAge(Math.toIntExact(jwtUtil.getRefreshExpiration() / 1000)); // ms -> s 변환
         response.addCookie(refreshTokenCookie);
 
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write("{\"accessToken\": \"" + accessToken + "\"}");
     }
-
 }

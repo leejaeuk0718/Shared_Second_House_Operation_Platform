@@ -77,12 +77,13 @@ public class SubscriptionsUser extends BaseTimeEntity {
 
     // 구독 신청 생성 (대표가 신청할 때)
     public static SubscriptionsUser create(User leader, WaitingSubscriptionReq req) {
+        // [날짜 검증 추가] 시작일을 신청 당일(now) 대신 사용자가 입력한 희망 시작일로 설정
         return SubscriptionsUser.builder()
                 .user(leader)
                 .accommodationId(req.getAccommodationId())
                 .durationMonths(req.getDurationMonths())
-                .startDate(LocalDate.now())
-                .endDate(LocalDate.now().plusMonths(req.getDurationMonths()))
+                .startDate(req.getStartDate())
+                .endDate(req.getStartDate().plusMonths(req.getDurationMonths()))
                 .status(SubscriptionStatus.PENDING)
                 .build();
     }

@@ -1,0 +1,64 @@
+.wrap {
+  margin-top: 12px;
+  border-top: 1px solid #eee;
+  padding-top: 12px;
+}
+
+.toggle {
+  background: none;
+  border: none;
+  color: #245b10;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.body {
+  margin-top: 10px;
+}
+
+/* 닫아도 지도를 언마운트하지 않고 숨기기만 (재마운트 비용 방지) */
+.hidden {
+  display: none;
+}
+
+.dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.dateChip {
+  padding: 5px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 999px;
+  background: #fff;
+  color: #555;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dateChipActive {
+  border-color: #245b10;
+  background: #245b10;
+  color: #fff;
+  font-weight: 600;
+}
+
+.map {
+  width: 100%;
+  height: 320px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.msg {
+  padding: 18px;
+  color: #666;
+  font-size: 14px;
+  text-align: center;
+  background: #f7f7f7;
+  border-radius: 8px;
+}

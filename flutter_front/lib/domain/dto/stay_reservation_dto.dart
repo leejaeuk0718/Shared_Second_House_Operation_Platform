@@ -1,3 +1,24 @@
+/*
+ * ==================================================================================
+ * [파일 정보]
+ * 위치  : lib/domain/dto/stay_reservation_dto.dart
+ * 역할  : 숙소 예약 요청/응답 데이터 모델
+ * 사용처 : StayReservationService, StayReservationController
+ * ----------------------------------------------------------------------------------
+ * [연관 파일]
+ * - stay_reservation_service.dart     : fromJson / toJson 호출
+ * - stay_reservation_controller.dart  : List<StayReservationDto> 보관
+ * - Spring: StayReservationController.java : 응답 구조 대응
+ * ----------------------------------------------------------------------------------
+ * [클래스 목록]
+ * - StayReservationRequestDto : 예약 생성 요청 (accommodationId, userId, startDate, endDate)
+ * - StayReservationDto        : 예약 응답 (id, 숙소정보, 날짜, status)
+ * ----------------------------------------------------------------------------------
+ * [주요 getter]
+ * - isCancelled : status == 'CANCELLED' 여부
+ * ==================================================================================
+ */
+
 class StayReservationRequestDto {
   final int accommodationId;
   final int userId;

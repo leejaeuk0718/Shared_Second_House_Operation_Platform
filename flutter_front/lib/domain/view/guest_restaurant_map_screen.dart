@@ -16,10 +16,13 @@ class GuestRestaurantMapScreen extends StatefulWidget {
 }
 
 class _GuestRestaurantMapScreenState extends State<GuestRestaurantMapScreen> {
-  // 🏠 숙소 좌표 고정 (테스트용 - 부산 해운대 인근)
+  // 🏠 숙소 좌표 고정 (테스트용 - 부산 해운대 인근, 지도 중심/숙소 마커용)
   static const double _houseLat = 35.1587;
   static const double _houseLng = 129.1604;
   static const LatLng _houseLatLng = LatLng(_houseLat, _houseLng);
+
+  // 🏨 맛집을 읽어올 숙소 id (sh_stay_accommodation). 테스트용 고정값.
+  static const int _accommodationId = 1;
 
   // 🎨 플랫폼 시그니처 테마 컬러
   static const Color primaryNavy = Color(0xFF23399D);
@@ -34,7 +37,7 @@ class _GuestRestaurantMapScreenState extends State<GuestRestaurantMapScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context
           .read<RestaurantController>()
-          .loadRestaurants(lat: _houseLat, lng: _houseLng);
+          .loadRestaurants(accommodationId: _accommodationId);
     });
   }
 
@@ -61,6 +64,9 @@ class _GuestRestaurantMapScreenState extends State<GuestRestaurantMapScreen> {
         Marker(
           markerId: MarkerId(p.id),
           position: LatLng(p.latitude, p.longitude),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange,
+          ),
           infoWindow: InfoWindow(
             title: p.name,
             snippet: _buildSnippet(p),
@@ -102,12 +108,27 @@ class _GuestRestaurantMapScreenState extends State<GuestRestaurantMapScreen> {
     }
   }
 
-  /// 마커 말풍선에 띄울 평점/주소 요약
+  /// 마커 말풍선 요약 (한 줄로 짧게 — 길면 기본 InfoWindow가 말줄임 처리됨)
   String _buildSnippet(PlaceDto p) {
-    final rating = p.rating != null
-        ? '⭐ ${p.rating} (${p.userRatingCount ?? 0})'
-        : '평점 없음';
-    return '$rating · ${p.address}';
+    final parts = <String>[
+      if (p.primaryType != null && p.primaryType!.isNotEmpty) p.primaryType!,
+      if (_todayHours(p) != null) '🕐 ${_todayHours(p)}',
+    ];
+    return parts.isEmpty ? '탭하면 상세보기' : parts.join(' · ');
+  }
+
+  /// 오늘 요일 영업시간만 추출 (weekdayDescriptions의 "월요일: 오전 11:00~..." → "오전 11:00~...")
+  String? _todayHours(PlaceDto p) {
+    if (p.weekdayDescriptions.isEmpty) return null;
+    const days = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+    final today = days[DateTime.now().weekday - 1]; // weekday: 1=월 ~ 7=일
+    for (final d in p.weekdayDescriptions) {
+      if (d.startsWith(today)) {
+        final idx = d.indexOf(': '); // "월요일: " 접두어 제거
+        return idx >= 0 ? d.substring(idx + 2) : d;
+      }
+    }
+    return null;
   }
 
   @override
@@ -148,7 +169,38 @@ class _GuestRestaurantMapScreenState extends State<GuestRestaurantMapScreen> {
                 style: const TextStyle(color: Colors.black54),
               ),
             ),
+          // 🏠 숙소 위치로 되돌리는 버튼 (웹과 동일 UX)
+          Positioned(
+            left: 12,
+            bottom: 12,
+            child: _recenterButton(_houseLatLng),
+          ),
         ],
+      ),
+    );
+  }
+
+  /// 지도 중심을 숙소 좌표로 되돌리는 흰색 버튼
+  Widget _recenterButton(LatLng target) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      elevation: 3,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(target, 15),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Text(
+            '🏠 숙소 위치로',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF333333),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -1,3 +1,25 @@
+/*
+ * ==================================================================================
+ * [파일 정보]
+ * 위치  : app/accommodations/[id]/components/AmenityGrid.tsx
+ * 역할  : 숙소 구성용품 목록을 아이콘 그리드로 표시
+ * 사용처 : app/accommodations/[id]/page.tsx
+ * ----------------------------------------------------------------------------------
+ * [연관 파일]
+ * - AmenityGrid.module.css              : 그리드 스타일
+ * - app/accommodations/[id]/page.tsx    : 부모 (amenities string props 전달)
+ * ----------------------------------------------------------------------------------
+ * [기능 목록]
+ * - amenities 문자열 쉼표 split → 항목별 렌더링
+ * - amenityIconMap으로 항목명에 맞는 react-icons 아이콘 매칭
+ * - 매칭 없는 항목은 기본 아이콘(FaUtensils) 표시
+ * ----------------------------------------------------------------------------------
+ * [파일 흐름과 순서]
+ * amenities props 수신 → split → amenityList 배열 생성
+ * → 각 항목 getIcon() 으로 아이콘 매칭 → 그리드 렌더링
+ * ==================================================================================
+ */
+
 import React, { JSX } from 'react';
 import styles from './AmenityGrid.module.css';
 import {

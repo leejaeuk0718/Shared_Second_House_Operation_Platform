@@ -12,16 +12,13 @@ import lombok.*;
 @AllArgsConstructor
 public class UserReq {
 
-    @NotBlank(message = "이름은 필수 입력 값입니다")
-    private String name;
-
     @NotBlank(message = "아이디는 필수 입력 값입니다.")
     @Pattern(regexp = "^[a-zA-Z0-9]{4,20}$", message = "아이디는 특수문자를 제외한 4~20자 사이로 입력해주세요.")
     private String username;
 
     @NotBlank(message = "비밀번호는 필수 입력 값입니다.")
 //    @Range(min = 8, max = 16, message = "비밀번호는 8~16자 사이로 입력해주세요.", groups = RangeGroups.class)
-    @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[@#$%^&+=!])(?!.*\\s).{8,16}$", message = "비밀번호는 영문, 숫자, 특수문자 모두 포함해주세요.")
+    @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[@#$%^&+=!])(?!.*\\s).{8,16}$", message = "비밀번호는 영문, 숫자, 특수문자(2개) 모두 포함해주세요.")
     private String password;
 
     @NotBlank(message = "닉네임은 필수 입력 값입니다.")
@@ -37,8 +34,6 @@ public class UserReq {
     private String phoneNumber;
 
 
-    private Role role;
-
     public static UserReq from(UserInfo userInfo){
         return UserReq.builder()
                 .username(userInfo.getUsername())
@@ -46,7 +41,6 @@ public class UserReq {
                 .nickname(userInfo.getNickname())
                 .email(userInfo.getEmail())
                 .phoneNumber(userInfo.getPhoneNumber())
-                .role(userInfo.getRole())
                 .build();
     }
 

@@ -1,3 +1,26 @@
+/*
+ * ==================================================================================
+ * [파일 정보]
+ * 위치  : lib/domain/dto/stay_accommodation_dto.dart
+ * 역할  : 숙소 및 가격 구간 데이터 모델 (Spring 응답 JSON → Dart 객체 변환)
+ * 사용처 : StayAccommodationService, StayAccommodationController, 각 화면
+ * ----------------------------------------------------------------------------------
+ * [연관 파일]
+ * - stay_accommodation_service.dart  : fromJson 호출
+ * - stay_accommodation_controller.dart : List<StayAccommodationDto> 보관
+ * - Spring: StayAccommodationResponseDto.java : 응답 구조 대응
+ * ----------------------------------------------------------------------------------
+ * [클래스 목록]
+ * - StayAccommodationPriceDto : 할인 구간 (minMonths, maxMonths, discountRate)
+ * - StayAccommodationDto      : 숙소 전체 정보 + 가격 구간 리스트
+ * ----------------------------------------------------------------------------------
+ * [주요 getter]
+ * - firstImageUrl : 첫 번째 이미지 URL (상대경로면 baseUrl 자동 조합)
+ * - imageUrls     : 전체 이미지 URL 리스트
+ * - amenityList   : 쉼표 구분 amenities → List<String>
+ * ==================================================================================
+ */
+
 import 'package:flutter_front/config/app_config.dart';
 
 class StayAccommodationPriceDto {
@@ -80,8 +103,10 @@ class StayAccommodationDto {
       latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
       longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
       status: json['status'] ?? 'AVAILABLE',
-      prices: (json['prices'] as List<dynamic>? ?? [])
-          .map((e) => StayAccommodationPriceDto.fromJson(e))
+      prices: (json['prices'] is List
+          ? (json['prices'] as List<dynamic>)
+          : <dynamic>[])
+          .map((e) => StayAccommodationPriceDto.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }

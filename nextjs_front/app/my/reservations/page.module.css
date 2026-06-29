@@ -67,6 +67,15 @@
   border-radius: var(--radius-sm);
 }
 
+.statusExpired {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #92400e;
+  background-color: #fef3c7;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+
 .address {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);

@@ -1,35 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_front/domain/view/main_screen.dart';
-import 'package:flutter_front/domain/view/team_test_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_front/service/cart_provider.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
+import 'core/api/dio_client.dart';
+import 'core/theme/app_theme.dart';
+import 'features/auth/provider/auth_provider.dart';
+import 'features/auth/screen/login_screen.dart';
+import 'config/app_router.dart'; // TODO: 실제 AppRouter 파일 경로로 수정
+import 'domain/view/product_list_screen.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+  await DioClient.instance.init();
+  await initializeDateFormatting('ko_KR', null);
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+      ],
+      child: const AppRouter(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  runApp(
-    MultiProvider(
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => StayAccommodationController()),
-        ChangeNotifierProvider(create: (_) => StayReservationController()),
-        ChangeNotifierProvider(create: (_) => ChatBotController()),
-        ChangeNotifierProvider(create: (_) => RestaurantController()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => CartProvider())
       ],
-
       child: MaterialApp(
-        title: '세컨하우스 - 팀 테스트',
+        title: '세컨하우스',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
-          useMaterial3: true,
-          scaffoldBackgroundColor: AppColors.background,
-        ),
-        home: const TeamTestScreen(),
-        // TODO [팀 병합 시]: home 대신 AppRouter() 사용
+        theme: AppTheme.lightTheme,
+        home: const LoginScreen(),
       ),
-      home: const TeamTestScreen(), //작업중: 테스트용 스크린 사용, 이후 main_screen.dart파일 경로로 수정
     );
   }
 }

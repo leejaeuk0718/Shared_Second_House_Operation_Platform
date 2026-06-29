@@ -79,11 +79,19 @@
 
 .priceWrap {
   display: flex;
-  align-items: baseline;
-  gap: 4px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.priceLabel {
+.priceBase {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.priceTeam {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
@@ -102,4 +110,8 @@
 .priceEmpty {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
+}
+
+.card:hover .editBtn {
+  opacity: 1 !important;
 }

@@ -19,9 +19,8 @@ import java.util.Map;
  * <p>인증: 헤더 X-Goog-Api-Key, 반환 필드 지정: 헤더 X-Goog-FieldMask
  * <p>동기 MVC라 WebClient 결과를 {@code block()}으로 받아 {@code List<PlaceDTO>}로 변환한다.
  *
- * <p>과금: 가장 싼 <b>Pro 등급</b> 필드만 사용한다(기본정보·종류·businessStatus·googleMapsUri).
- * rating·priceLevel·전화·영업시간(Enterprise)과 allowsDogs 등(Atmosphere)은 비용 때문에 제외.
- * 인기도순 정렬은 rankPreference(요청 파라미터)로 동작하므로 평점 필드를 안 받아도 무방하다.
+ * <p>과금: nationalPhoneNumber·regularOpeningHours는 상위 등급(Enterprise) 필드라
+ * Pro만 쓸 때보다 호출 비용이 올라간다.
  */
 @Component
 public class GooglePlacesClient {
@@ -29,19 +28,16 @@ public class GooglePlacesClient {
     /** Places API (New) 주변검색 엔드포인트(절대 URL). 공용 WebClient엔 baseUrl이 없어 여기서 직접 지정. */
     private static final String SEARCH_NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby";
 
-    /** 응답에서 받아올 필드만 지정(미지정 시 에러). places. 접두어 필수. Pro 등급 필드만 사용. */
+    /** 응답에서 받아올 필드만 지정(미지정 시 에러). places. 접두어 필수. */
     private static final String FIELD_MASK = String.join(",",
             "places.id",
             "places.displayName",
-            "places.formattedAddress",
-            "places.location",
-            // 음식점 종류
             "places.primaryType",
-            "places.primaryTypeDisplayName",
-            "places.types",
-            // 상태/링크
-            "places.businessStatus",
-            "places.googleMapsUri");
+            "places.nationalPhoneNumber",
+            "places.location",
+            "places.googleMapsUri",
+            // 영업시간 중 요일별 설명만(openNow 등 불필요)
+            "places.regularOpeningHours.weekdayDescriptions");
 
     private final WebClient googleWebClient;
     private final String apiKey;
@@ -108,17 +104,16 @@ public class GooglePlacesClient {
         }
         for (JsonNode p : places) {
             JsonNode loc = p.path("location");
+            JsonNode hours = p.path("regularOpeningHours");
             out.add(PlaceDTO.builder()
                     .id(text(p, "id"))
                     .name(p.path("displayName").path("text").asText(null))
-                    .address(text(p, "formattedAddress"))
+                    .primaryType(text(p, "primaryType"))
+                    .phoneNumber(text(p, "nationalPhoneNumber"))
                     .latitude(loc.has("latitude") ? loc.get("latitude").asDouble() : null)
                     .longitude(loc.has("longitude") ? loc.get("longitude").asDouble() : null)
-                    .primaryType(text(p, "primaryType"))
-                    .primaryTypeName(p.path("primaryTypeDisplayName").path("text").asText(null))
-                    .types(stringList(p.path("types")))
                     .googleMapsUri(text(p, "googleMapsUri"))
-                    .businessStatus(text(p, "businessStatus"))
+                    .weekdayDescriptions(stringList(hours.path("weekdayDescriptions")))
                     .build());
         }
         return out;

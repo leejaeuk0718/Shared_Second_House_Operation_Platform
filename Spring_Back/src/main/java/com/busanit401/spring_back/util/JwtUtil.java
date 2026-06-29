@@ -34,10 +34,10 @@ public class JwtUtil {
 
     public String generateToken(String username) {
         return Jwts.builder()
-                .subject(username) // [변경] setSubject() -> subject()
-                .issuedAt(new Date()) // [변경] setIssuedAt() -> issuedAt()
-                .expiration(new Date(System.currentTimeMillis() + expiration * 1000)) // [변경] setExpiration() -> expiration()
-                .signWith(key) // [변경] 이제 알고리즘(HS512 등)을 명시하지 않아도 key의 길이를 보고 자동으로 최적의 알고리즘을 선택해 줍니다!
+                .subject(username)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration)) // * 1000 제거
+                .signWith(key)
                 .compact();
     }
 
