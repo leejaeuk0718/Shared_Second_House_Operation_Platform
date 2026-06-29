@@ -45,6 +45,10 @@ public enum ErrorCode {
     // Stay - Story
     STAY_STORY_NOT_FOUND(HttpStatus.NOT_FOUND, "SS001", "스토리를 찾을 수 없습니다."),
 
+    // Order (주문 관련 추가)
+    ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "O001", "주문을 찾을 수 없습니다."),
+    INVALID_ORDER_DATA(HttpStatus.BAD_REQUEST, "O002", "잘못된 주문 요청입니다."),
+
     // Common
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "C001", "잘못된 입력값입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C002", "서버 오류가 발생했습니다.");
