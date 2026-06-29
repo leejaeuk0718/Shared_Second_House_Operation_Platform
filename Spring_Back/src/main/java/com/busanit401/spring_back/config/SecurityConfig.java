@@ -111,8 +111,8 @@ public class SecurityConfig {
                                 "/login/**",
 
                                 // 숙소 목록 조회, 숙소 상세 조회
-                                "/api/stay/accommodations",
-                                "/api/stay/accommodations/",
+                                "/api/stay/**",
+                                "/api/stay/accommodations/**",
                                 "/api/stay/stories/",
                                 "/api/places/",
                                 "/uploads/",
